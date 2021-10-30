@@ -8,7 +8,7 @@ CAPTURE_WIDTH, CAPTURE_HEIGHT = 1280, 720
 PATH_IMAGES = "images"
 DIRECTORY = os.listdir(PATH_IMAGES)
 
-'''21 hand landmarks'''
+"""21 hand landmarks"""
 
 WRIST = 0
 THUMB_CMC = 1
@@ -31,6 +31,7 @@ PINKY_MCP = 17
 PINKY_PIP = 18
 PINKY_DIP = 19
 PINKY_TIP = 20
+
 
 def main():
 
