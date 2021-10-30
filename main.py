@@ -7,7 +7,7 @@ from constants import *
 
 def main():
 
-    DIRECTORY = os.listdir(PATH_IMAGES)
+    dir_images = os.listdir(PATH_IMAGES)
 
     mp_drawing = mp.solutions.drawing_utils
     mp_hands = mp.solutions.hands
