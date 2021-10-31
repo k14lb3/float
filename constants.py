@@ -1,7 +1,14 @@
-CAPTURE_WIDTH, CAPTURE_HEIGHT = 1280, 720
+CAPTURE_WIDTH, CAPTURE_HEIGHT = 720, 405
+
+"""Colors"""
+COLOR_BLACK = '#232932'
+COLOR_GRAY = '#393E46'
+COLOR_BLUE = '#01ADB5'
+COLOR_WHITE = '#EEEEEE'
 
 """Paths"""
 PATH_IMAGES = "images"
+PATH_ICONS = 'src/icons/'
 
 """Hand Landmarks"""
 
