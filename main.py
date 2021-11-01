@@ -11,6 +11,7 @@ class App(tk.Tk):
         tk.Tk.__init__(self)
         self.overrideredirect(True)
         self.cap_src = capture_source
+        self.dragging = False
         self.width = 816
         self.height = 582
         self.geometry(
@@ -27,32 +28,34 @@ class App(tk.Tk):
         self.update_capture()
 
     def update_capture(self):
-        def frame_resize(img):
-            # Resize by maintaining the aspect ratio by determining what is
-            # the percentage of the height relative to the original height in pixels.
-            # And then multiplying the original the original width to that percentage.
-            base_height = CAPTURE_HEIGHT
-            height_percent = base_height / float(img.size[1])
-            width = int((float(img.size[0]) * float(height_percent)))
-            return img.resize((width, base_height), Image.ANTIALIAS)
+        if not self.dragging:
 
-        success, frame = self.cap.get_video_capture_frame()
+            def frame_resize(img):
+                # Resize by maintaining the aspect ratio by determining what is
+                # the percentage of the height relative to the original height in pixels.
+                # And then multiplying the original the original width to that percentage.
+                base_height = CAPTURE_HEIGHT
+                height_percent = base_height / float(img.size[1])
+                width = int((float(img.size[0]) * float(height_percent)))
+                return img.resize((width, base_height), Image.ANTIALIAS)
 
-        if success:
-            img = Image.fromarray(frame)
-            img = frame_resize(img)
-            self.cap_frame = ImageTk.PhotoImage(image=img)
-            if self.cap_frame.height() != CAPTURE_WIDTH:
-                self.canvas_camera.create_image(
-                    ((CAPTURE_WIDTH // 2) - (img.size[0] // 2)),
-                    0,
-                    image=self.cap_frame,
-                    anchor=tk.NW,
-                )
-            else:
-                self.canvas_camera.create_image(
-                    0, 0, image=self.cap_frame, anchor=tk.NW
-                )
+            success, frame = self.cap.get_video_capture_frame()
+
+            if success:
+                img = Image.fromarray(frame)
+                img = frame_resize(img)
+                self.cap_frame = ImageTk.PhotoImage(image=img)
+                if self.cap_frame.height() != CAPTURE_WIDTH:
+                    self.canvas_camera.create_image(
+                        ((CAPTURE_WIDTH // 2) - (img.size[0] // 2)),
+                        0,
+                        image=self.cap_frame,
+                        anchor=tk.NW,
+                    )
+                else:
+                    self.canvas_camera.create_image(
+                        0, 0, image=self.cap_frame, anchor=tk.NW
+                    )
 
         self.after(10, self.update_capture)
 
@@ -84,6 +87,7 @@ class App(tk.Tk):
 
         title_bar.bind("<Button-1>", self.win_drag__init)
         title_bar.bind("<B1-Motion>", self.win_drag)
+        title_bar.bind("<ButtonRelease-1>", self.win_drag__release)
 
         # Create title
         title = tk.Label(
@@ -122,11 +126,15 @@ class App(tk.Tk):
     def win_drag__init(self, e):
         # Get cursor position relative to the window
         self.cursor_rel_x, self.cursor_rel_y = e.x, e.y
+        self.dragging = True
 
     def win_drag(self, e):
         self.geometry(
             f"+{e.x_root - self.cursor_rel_x}" f"+{e.y_root - self.cursor_rel_y}"
         )
+
+    def win_drag__release(self, _):
+        self.dragging = False
 
     def win_minimize(self, _):
         self.withdraw()
@@ -189,7 +197,7 @@ def main():
 
     dir_images = os.listdir(PATH_IMAGES)
 
-    app = App(capture_source=0)
+    app = App()
     app.mainloop()
 
 
