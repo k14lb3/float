@@ -3,13 +3,15 @@ import cv2 as cv
 import mediapipe as mp
 import tkinter as tk
 from PIL import Image, ImageTk
+import pyvirtualcam
 from constants import *
 
 
 class App(tk.Tk):
-    def __init__(self, capture_source=0):
+    def __init__(self, cam, capture_source=0):
         tk.Tk.__init__(self)
         self.overrideredirect(True)
+        self.cam = cam
         self.cap_src = capture_source
         self.dragging = False
         self.width = 816
@@ -27,7 +29,7 @@ class App(tk.Tk):
         self.init_capture()
         self.hand_detector = HandDetector()
         self.update_capture()
-
+    
     def update_capture(self):
         if not self.dragging:
 
@@ -49,6 +51,9 @@ class App(tk.Tk):
                 frame = self.hand_detector.find_hands(frame, True)
 
                 frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+
+                self.cam.send(frame)
+                self.cam.sleep_until_next_frame()
                 
                 frame_arr = Image.fromarray(frame)
                 frame_arr = frame_resize(frame_arr)
@@ -269,8 +274,9 @@ def main():
 
     dir_images = os.listdir(PATH_IMAGES)
 
-    app = App()
-    app.mainloop()
+    with pyvirtualcam.Camera(width=1280, height=720, fps=60) as cam:
+        app = App(cam)
+        app.mainloop()
 
 
 if __name__ == "__main__":
