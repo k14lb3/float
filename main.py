@@ -25,6 +25,7 @@ class App(tk.Tk):
         self.init_btn_settings()
         self.init_btn_import()
         self.init_capture()
+        self.hand_detector = HandDetector()
         self.update_capture()
 
     def update_capture(self):
@@ -42,12 +43,19 @@ class App(tk.Tk):
             success, frame = self.cap.get_video_capture_frame()
 
             if success:
-                img = Image.fromarray(frame)
-                img = frame_resize(img)
-                self.cap_frame = ImageTk.PhotoImage(image=img)
+
+                frame = cv.flip(frame, 1)
+
+                frame = self.hand_detector.find_hands(frame, True)
+
+                frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+                
+                frame_arr = Image.fromarray(frame)
+                frame_arr = frame_resize(frame_arr)
+                self.cap_frame = ImageTk.PhotoImage(image=frame_arr)
                 if self.cap_frame.height() != CAPTURE_WIDTH:
                     self.canvas_camera.create_image(
-                        ((CAPTURE_WIDTH // 2) - (img.size[0] // 2)),
+                        ((CAPTURE_WIDTH // 2) - (frame_arr.size[0] // 2)),
                         0,
                         image=self.cap_frame,
                         anchor=tk.NW,
@@ -166,32 +174,96 @@ class Capture:
             success, frame = self.cap.read()
 
             if success:
-
-                with self.mp_hands.Hands(
-                    min_detection_confidence=0.5, min_tracking_confidence=0.5
-                ) as hands:
-
-                    frame.flags.writeable = False
-                    frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-                    results = hands.process(frame)
-
-                    frame.flags.writeable = True
-                    frame = cv.cvtColor(frame, cv.COLOR_RGB2BGR)
-
-                    if results.multi_hand_landmarks:
-                        for hand_landmarks in results.multi_hand_landmarks:
-                            self.mp_drawing.draw_landmarks(
-                                frame,
-                                hand_landmarks,
-                                self.mp_hands.HAND_CONNECTIONS,
-                            )
-
-                return (success, cv.cvtColor(cv.flip(frame, 1), cv.COLOR_BGR2RGB))
+                return (success, frame)
 
     def __del__(self):
         if self.cap.isOpened():
             self.cap.release()
 
+
+class HandDetector:
+    def __init__(
+        self,
+        static_image_mode=False,
+        max_num_hands=2,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5,
+    ):
+        """Initializes hand detector
+
+        Args:
+        static_image_mode: Whether to treat the input images as a batch of static
+            and possibly unrelated images, or a video stream.
+        max_num_hands: Maximum number of hands to detect.
+        min_detection_confidence: Minimum confidence value ([0.0, 1.0]) for hand
+            detection to be considered successful.
+        min_tracking_confidence: Minimum confidence value ([0.0, 1.0]) for the
+            hand landmarks to be considered tracked successfully.
+        """
+        self.static_image_mode = static_image_mode
+        self.max_num_hands = max_num_hands
+        self.min_detection_confidence = min_detection_confidence
+        self.min_tracking_confidence = min_tracking_confidence
+
+        self.mp_hands = mp.solutions.hands
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.hands = self.mp_hands.Hands(
+            self.static_image_mode,
+            self.max_num_hands,
+            self.min_detection_confidence,
+            self.min_tracking_confidence,
+        )
+        self.hands_list = []
+
+    def find_hands(self, img, draw=False):
+        """Finds hands in an image.
+
+        frame: Image to detect hands in.
+        draw: Draw the output on the image.
+        return: Image.
+        """
+
+        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+
+        img.flags.writeable = False
+
+        results = self.hands.process(img)
+
+        img.flags.writeable = True
+
+        img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+
+        w, h, _ = img.shape
+
+        if results.multi_hand_landmarks:
+            for handedness, hand_landmarks in zip(
+                results.multi_handedness, results.multi_hand_landmarks
+            ):
+                hand = []
+                if handedness.classification[0].label == "Left":
+                    hand.append("Right")
+                else:
+                    hand.append("Left")
+
+                hand.append([])
+                for landmark in list(hand_landmarks.landmark):
+                    hand[1].append(
+                        (
+                            int(landmark.x * w),
+                            int(landmark.y * h),
+                        )
+                    )
+
+                self.hands_list.append(hand)
+
+                if draw:
+                    self.mp_drawing.draw_landmarks(
+                        img,
+                        hand_landmarks,
+                        self.mp_hands.HAND_CONNECTIONS,
+                    )
+
+        return img
 
 def main():
 
