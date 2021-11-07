@@ -1,4 +1,5 @@
 import os
+import math
 import cv2 as cv
 import mediapipe as mp
 import tkinter as tk
@@ -8,7 +9,7 @@ from constants import *
 
 
 class App(tk.Tk):
-    def __init__(self, cam, capture_source=0):
+    def __init__(self, cam, float_images, capture_source=0):
         tk.Tk.__init__(self)
         self.overrideredirect(True)
         self.cam = cam
@@ -16,6 +17,7 @@ class App(tk.Tk):
         self.dragging = False
         self.width = 816
         self.height = 582
+        self.float_images = float_images
         self.geometry(
             f"{self.width}x{self.height}"
             f"+{self.winfo_screenwidth()//2 - self.width//2}"
@@ -29,7 +31,7 @@ class App(tk.Tk):
         self.init_capture()
         self.hand_detector = HandDetector()
         self.update_capture()
-    
+
     def update_capture(self):
         if not self.dragging:
 
@@ -46,15 +48,33 @@ class App(tk.Tk):
 
             if success:
 
-                frame = cv.flip(frame, 1)
-
+                self.hand_detector.hands_list = []
                 frame = self.hand_detector.find_hands(frame, True)
+
+                for float_image in self.float_images:
+                    frame = self.img_draw(frame, float_image)
 
                 frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
+                if self.float_images:
+                    if self.hand_detector.hands_list:
+                        if (
+                            self.hand_detector.get_distance(
+                                self.hand_detector.hands_list[0][1][INDEX_FINGER_TIP],
+                                self.hand_detector.hands_list[0][1][MIDDLE_FINGER_TIP],
+                            )
+                            < 40
+                        ):
+                            # Make index finger the cursor
+                            cursor = self.hand_detector.hands_list[0][1][
+                                INDEX_FINGER_TIP
+                            ]
+                            for float_image in self.float_images:
+                                float_image.move(cursor)
+
                 self.cam.send(frame)
                 self.cam.sleep_until_next_frame()
-                
+
                 frame_arr = Image.fromarray(frame)
                 frame_arr = frame_resize(frame_arr)
                 self.cap_frame = ImageTk.PhotoImage(image=frame_arr)
@@ -71,6 +91,43 @@ class App(tk.Tk):
                     )
 
         self.after(10, self.update_capture)
+
+    def img_draw(self, frame, float_image):
+        pos = []
+        frame_h, frame_w = frame.shape[:2]
+        w, h = float_image.get_width(), float_image.get_height()
+        float_x, float_y = float_image.get_pos_x(), float_image.get_pos_y()
+
+        # Top Left
+        if float_x <= 0 and float_y <= 0:
+            pos = slice(0, h), slice(0, w)
+        # Top Right
+        elif float_x >= frame_w - w and float_y <= 0:
+            pos = slice(0, h), slice(frame_w - w, frame_w)
+        # Bottom Right
+        elif float_x >= frame_w - w and float_y >= frame_h - h:
+            pos = slice(frame_h - h, frame_h), slice(frame_w - w, frame_w)
+        # Bottom Left
+        elif float_x <= 0 and float_y >= frame_h - h:
+            pos = slice(frame_h - h, frame_h), slice(0, w)
+        # Top
+        elif float_y <= 0:
+            pos = slice(0, h), slice(float_x, float_x + w)
+        # Right
+        elif float_x >= frame_w - w:
+            pos = slice(float_y, float_y + h), slice(frame_w - w, frame_w)
+        # Bottom
+        elif float_y >= frame_h - h:
+            pos = slice(frame_h - h, frame_h), slice(float_x, float_x + w)
+        # Left
+        elif float_x <= 0:
+            pos = slice(float_y, float_y + h), slice(0, w)
+        else:
+            pos = slice(float_y, float_y + h), slice(float_x, float_x + w)
+
+        frame[pos] = float_image.img
+
+        return frame
 
     def init_capture(self):
         self.cap = Capture(self.cap_src)
@@ -179,7 +236,7 @@ class Capture:
             success, frame = self.cap.read()
 
             if success:
-                return (success, frame)
+                return (success, cv.flip(frame, 1))
 
     def __del__(self):
         if self.cap.isOpened():
@@ -238,7 +295,10 @@ class HandDetector:
 
         img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
 
-        w, h, _ = img.shape
+        (
+            h,
+            w,
+        ) = img.shape[:2]
 
         if results.multi_hand_landmarks:
             for handedness, hand_landmarks in zip(
@@ -270,12 +330,71 @@ class HandDetector:
 
         return img
 
+    def get_distance(self, p1, p2):
+        x1, y1 = p1
+        x2, y2 = p2
+        dist = math.hypot(x2 - x1, y2 - y1)
+        return dist
+
+
+class FloatImage:
+    def __init__(self, path, pos):
+        self.path = path
+        self.pos = pos
+
+        if "png" in os.path.splitext(self.path)[1]:
+            self.img = cv.imread(self.path, cv.IMREAD_UNCHANGED)
+            self.png = True
+        else:
+            self.img = cv.imread(self.path)
+            self.png = False
+
+        self.size = self.img.shape[:2]
+
+    def move(self, cursor):
+        cursor_x, cursor_y = cursor
+        x, y = self.get_pos_x(), self.get_pos_y()
+        w, h = self.get_width(), self.get_height()
+        if x < cursor_x < x + w and y < cursor_y < y + h:
+            self.set_pos_x(cursor_x - w // 2)
+            self.set_pos_y(cursor_y - h // 2)
+            pass
+
+    def is_png(self):
+        return self.png
+
+    def get_width(self):
+        return self.size[1]
+
+    def get_height(self):
+        return self.size[0]
+
+    def get_pos_x(self):
+        return self.pos[0]
+
+    def get_pos_y(self):
+        return self.pos[1]
+
+    def set_width(self, w):
+        self.size = (self.size[0], w)
+
+    def set_height(self, h):
+        self.size = (h, self.size[1])
+
+    def set_pos_x(self, x):
+        self.pos[0] = x
+
+    def set_pos_y(self, y):
+        self.pos[1] = y
+
+
 def main():
 
     dir_images = os.listdir(PATH_IMAGES)
+    float_images = []
 
     with pyvirtualcam.Camera(width=1280, height=720, fps=60) as cam:
-        app = App(cam)
+        app = App(cam, float_images)
         app.mainloop()
 
 
