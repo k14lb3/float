@@ -1,6 +1,7 @@
 import os
 import math
 import cv2 as cv
+import numpy as np
 import mediapipe as mp
 import tkinter as tk
 from PIL import Image, ImageTk
@@ -91,6 +92,56 @@ class App(tk.Tk):
                     )
 
         self.after(10, self.update_capture)
+
+    def overlay_transparent(self, bg, fg, pos=(0, 0)):
+        bg_h, bg_w, bg_c = bg.shape
+        fg_h, fg_w = fg.shape[:2]
+        pos_x, pos_y = pos
+
+        # Create mask from alpha
+        *_, fg_alpha = cv.split(fg)
+
+        # Convert mask from foreground to BGRA which
+        # is the same size as the foreground to
+        # be able to use bitwise operation
+        fg_mask_bgra = cv.cvtColor(fg_alpha, cv.COLOR_GRAY2BGRA)
+        fg_rgba = cv.bitwise_and(fg, fg_mask_bgra)
+
+        # Convert image to BGR which is the same size
+        # as the background mask to be able to use
+        # bitwise operation
+        fg_rgb = cv.cvtColor(fg_rgba, cv.COLOR_BGRA2BGR)
+
+        # Create a blank image of the same size
+        # with the background for the full foreground mask
+        fg_mask_full = np.zeros((bg_h, bg_w, bg_c), np.uint8)
+
+        # Replace full foreground mask at the given position
+        # with the RGB foreground
+        fg_mask_full[pos_x : pos_x + fg_w, pos_y : pos_y + fg_h] = fg_rgb
+
+        # Convert mask from foreground to BGR which
+        # is the same size as the background to
+        # be able to use bitwise operation
+        fg_mask_bgr = cv.cvtColor(fg_alpha, cv.COLOR_GRAY2BGR)
+
+        # Invert mask
+        fg_mask_bgr_inv = cv.bitwise_not(fg_mask_bgr)
+
+        # Create a blank image of the same size with the background
+        bg_mask_full = np.ones((bg_h, bg_w, bg_c), np.uint8) * 255
+
+        # Replace full background mask at the given position
+        # with the RGB foreground
+        bg_mask_full[pos_x : pos_x + fg_w, pos_y : pos_y + fg_h] = fg_mask_bgr_inv
+
+        # Mask background
+        bg_masked = cv.bitwise_and(bg, bg_mask_full)
+
+        # Put the masked foreground to the masked background
+        img = cv.bitwise_or(bg_masked, fg_mask_full)
+
+        return img
 
     def img_draw(self, frame, float_image):
         pos = []
