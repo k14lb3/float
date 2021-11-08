@@ -118,7 +118,7 @@ class App(tk.Tk):
 
         # Replace full foreground mask at the given position
         # with the RGB foreground
-        fg_mask_full[pos_x : pos_x + fg_w, pos_y : pos_y + fg_h] = fg_rgb
+        fg_mask_full[pos_y : pos_y + fg_h, pos_x : pos_x + fg_w] = fg_rgb
 
         # Convert mask from foreground to BGR which
         # is the same size as the background to
@@ -133,7 +133,7 @@ class App(tk.Tk):
 
         # Replace full background mask at the given position
         # with the RGB foreground
-        bg_mask_full[pos_x : pos_x + fg_w, pos_y : pos_y + fg_h] = fg_mask_bgr_inv
+        bg_mask_full[pos_y : pos_y + fg_h, pos_x : pos_x + fg_w] = fg_mask_bgr_inv
 
         # Mask background
         bg_masked = cv.bitwise_and(bg, bg_mask_full)
@@ -147,36 +147,66 @@ class App(tk.Tk):
         pos = []
         frame_h, frame_w = frame.shape[:2]
         w, h = float_image.get_width(), float_image.get_height()
-        float_x, float_y = float_image.get_pos_x(), float_image.get_pos_y()
+        x, y = float_image.get_pos_x(), float_image.get_pos_y()
 
-        # Top Left
-        if float_x <= 0 and float_y <= 0:
-            pos = slice(0, h), slice(0, w)
-        # Top Right
-        elif float_x >= frame_w - w and float_y <= 0:
-            pos = slice(0, h), slice(frame_w - w, frame_w)
-        # Bottom Right
-        elif float_x >= frame_w - w and float_y >= frame_h - h:
-            pos = slice(frame_h - h, frame_h), slice(frame_w - w, frame_w)
-        # Bottom Left
-        elif float_x <= 0 and float_y >= frame_h - h:
-            pos = slice(frame_h - h, frame_h), slice(0, w)
-        # Top
-        elif float_y <= 0:
-            pos = slice(0, h), slice(float_x, float_x + w)
-        # Right
-        elif float_x >= frame_w - w:
-            pos = slice(float_y, float_y + h), slice(frame_w - w, frame_w)
-        # Bottom
-        elif float_y >= frame_h - h:
-            pos = slice(frame_h - h, frame_h), slice(float_x, float_x + w)
-        # Left
-        elif float_x <= 0:
-            pos = slice(float_y, float_y + h), slice(0, w)
+        if float_image.is_png():
+            # Top Left
+            if x <= 0 and y <= 0:
+                pos = (0, 0)
+            # Top Right
+            elif x >= frame_w - w and y <= 0:
+                pos = (frame_w - w, 0)
+            # Bottom Right
+            elif x >= frame_w - w and y >= frame_h - h:
+                pos = (frame_w - w, frame_h - h)
+            # Bottom Left
+            elif x <= 0 and y >= frame_h - h:
+                pos = (0, frame_h - h)
+            # Top
+            elif y <= 0:
+                pos = (x, 0)
+            # Right
+            elif x >= frame_w - w:
+                pos = (frame_w - w, y)
+            # Bottom
+            elif y >= frame_h - h:
+                pos = (x, frame_h - h)
+            # Left
+            elif x <= 0:
+                pos = (0, y)
+            else:
+                pos = (x, y)
+
+            frame[:] = self.overlay_transparent(frame, float_image.img, pos)
         else:
-            pos = slice(float_y, float_y + h), slice(float_x, float_x + w)
+            # Top Left
+            if x <= 0 and y <= 0:
+                pos = slice(0, h), slice(0, w)
+            # Top Right
+            elif x >= frame_w - w and y <= 0:
+                pos = slice(0, h), slice(frame_w - w, frame_w)
+            # Bottom Right
+            elif x >= frame_w - w and y >= frame_h - h:
+                pos = slice(frame_h - h, frame_h), slice(frame_w - w, frame_w)
+            # Bottom Left
+            elif x <= 0 and y >= frame_h - h:
+                pos = slice(frame_h - h, frame_h), slice(0, w)
+            # Top
+            elif y <= 0:
+                pos = slice(0, h), slice(x, x + w)
+            # Right
+            elif x >= frame_w - w:
+                pos = slice(y, y + h), slice(frame_w - w, frame_w)
+            # Bottom
+            elif y >= frame_h - h:
+                pos = slice(frame_h - h, frame_h), slice(x, x + w)
+            # Left
+            elif x <= 0:
+                pos = slice(y, y + h), slice(0, w)
+            else:
+                pos = slice(y, y + h), slice(x, x + w)
 
-        frame[pos] = float_image.img
+            frame[pos] = float_image.img
 
         return frame
 
@@ -409,7 +439,6 @@ class FloatImage:
         if x < cursor_x < x + w and y < cursor_y < y + h:
             self.set_pos_x(cursor_x - w // 2)
             self.set_pos_y(cursor_y - h // 2)
-            pass
 
     def is_png(self):
         return self.png
@@ -433,16 +462,21 @@ class FloatImage:
         self.size = (h, self.size[1])
 
     def set_pos_x(self, x):
-        self.pos[0] = x
+        self.pos = (x, self.pos[1])
 
     def set_pos_y(self, y):
-        self.pos[1] = y
+        self.pos = (self.pos[0], y)
 
 
 def main():
 
     dir_images = os.listdir(PATH_IMAGES)
     float_images = []
+
+    for i, PATH_IMAGE in enumerate(dir_images):
+        float_images.append(
+            FloatImage(f"{PATH_IMAGES}/{PATH_IMAGE}", (50 + i * 300, 100))
+        )
 
     with pyvirtualcam.Camera(width=1280, height=720, fps=60) as cam:
         app = App(cam, float_images)
