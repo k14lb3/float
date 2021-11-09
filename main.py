@@ -10,11 +10,19 @@ from constants import *
 
 
 class App(tk.Tk):
-    def __init__(self, cam, float_images, capture_source=0):
+    def __init__(self, cam, float_images, cap_src=0):
+        """Initializes the app.
+        
+        Keyword arguments:
+        cam -- Virtual cam source.
+        float_images -- List of FloatImages objects.
+        cap_src -- Capture source.
+        """
+        
         tk.Tk.__init__(self)
         self.overrideredirect(True)
         self.cam = cam
-        self.cap_src = capture_source
+        self.cap_src = cap_src
         self.dragging = False
         self.width = 816
         self.height = 582
@@ -94,6 +102,15 @@ class App(tk.Tk):
         self.after(10, self.update_capture)
 
     def overlay_transparent(self, bg, fg, pos=(0, 0)):
+        """Overlays a png image over a jpg image.
+        
+        Keyword arguments:
+        bg -- Background image.
+        fg -- Foreground image.
+        pos -- Position of foreground over the background.
+        Return: Background image overlayed with the foreground image.
+        """
+        
         bg_h, bg_w, bg_c = bg.shape
         fg_h, fg_w = fg.shape[:2]
         pos_x, pos_y = pos
@@ -307,8 +324,8 @@ class App(tk.Tk):
 
 
 class Capture:
-    def __init__(self, src=0):
-        self.cap = cv.VideoCapture(src)
+    def __init__(self, cap_src=0):
+        self.cap = cv.VideoCapture(cap_src)
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_hands = mp.solutions.hands
 
@@ -332,15 +349,15 @@ class HandDetector:
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5,
     ):
-        """Initializes hand detector
+        """Initializes hand detector.
 
-        Args:
-        static_image_mode: Whether to treat the input images as a batch of static
+        Keyword arguments:
+        static_image_mode -- Whether to treat the input images as a batch of static
             and possibly unrelated images, or a video stream.
-        max_num_hands: Maximum number of hands to detect.
-        min_detection_confidence: Minimum confidence value ([0.0, 1.0]) for hand
+        max_num_hands -- Maximum number of hands to detect.
+        min_detection_confidence -- Minimum confidence value ([0.0, 1.0]) for hand
             detection to be considered successful.
-        min_tracking_confidence: Minimum confidence value ([0.0, 1.0]) for the
+        min_tracking_confidence -- Minimum confidence value ([0.0, 1.0]) for the
             hand landmarks to be considered tracked successfully.
         """
         self.static_image_mode = static_image_mode
@@ -361,9 +378,10 @@ class HandDetector:
     def find_hands(self, img, draw=False):
         """Finds hands in an image.
 
+        Keyword arguments:
         frame: Image to detect hands in.
         draw: Draw the output on the image.
-        return: Image.
+        Return: Returns an image if draw is True.
         """
 
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
@@ -420,6 +438,13 @@ class HandDetector:
 
 class FloatImage:
     def __init__(self, path, pos):
+        """Initializes an interactable image using hand gestures.
+        
+        Keyword arguments:
+        path -- File path of the image.
+        pos -- Position of the image.
+        """
+        
         self.path = path
         self.pos = pos
 
