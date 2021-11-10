@@ -41,24 +41,24 @@ class App(tk.Tk):
         self.hand_detector = HandDetector()
         self.update_capture()
 
-    def drag_gesture(self, hands):
+    def drag_gesture(self, hand):
         if (
             self.hand_detector.get_distance(
-                hands[1][INDEX_FINGER_TIP],
-                hands[1][MIDDLE_FINGER_TIP],
+                hand[1][INDEX_FINGER_TIP],
+                hand[1][MIDDLE_FINGER_TIP],
             )
             < 40
             and (
-                hands[1][INDEX_FINGER_TIP][1]
-                < hands[1][INDEX_FINGER_DIP][1]
+                hand[1][INDEX_FINGER_TIP][1]
+                < hand[1][INDEX_FINGER_DIP][1]
             )
             and (
-                hands[1][MIDDLE_FINGER_TIP][1]
-                < hands[1][MIDDLE_FINGER_DIP][1]
+                hand[1][MIDDLE_FINGER_TIP][1]
+                < hand[1][MIDDLE_FINGER_DIP][1]
             )
         ):
 
-            return hands
+            return hand
         return False
 
     def update_capture(self):
