@@ -264,6 +264,7 @@ class App(tk.Tk):
         title.pack(side="left")
         title.bind("<Button-1>", self.win_drag__init)
         title.bind("<B1-Motion>", self.win_drag)
+        title.bind("<ButtonRelease-1>", self.win_drag__release)
 
         # Create minimize button
         btn_minimize = tk.Label(
