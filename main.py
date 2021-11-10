@@ -48,16 +48,32 @@ class App(tk.Tk):
                 hand[1][MIDDLE_FINGER_TIP],
             )
             < 40
-            and (
-                hand[1][INDEX_FINGER_TIP][1]
-                < hand[1][INDEX_FINGER_DIP][1]
-            )
-            and (
-                hand[1][MIDDLE_FINGER_TIP][1]
-                < hand[1][MIDDLE_FINGER_DIP][1]
-            )
+            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1])
+            and (hand[1][MIDDLE_FINGER_TIP][1] < hand[1][MIDDLE_FINGER_DIP][1])
         ):
 
+            return hand
+        return False
+
+    def delete_gesture(self, hand):
+        if (
+            self.hand_detector.get_distance(
+                hand[1][MIDDLE_FINGER_TIP],
+                hand[1][THUMB_TIP],
+            )
+            < 30
+            and self.hand_detector.get_distance(
+                hand[1][RING_FINGER_TIP],
+                hand[1][THUMB_TIP],
+            )
+            < 30
+            and self.hand_detector.get_distance(
+                hand[1][PINKY_TIP],
+                hand[1][THUMB_TIP],
+            )
+            < 30
+            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1])
+        ):
             return hand
         return False
 
@@ -81,19 +97,13 @@ class App(tk.Tk):
                 frame = self.hand_detector.find_hands(frame, True)
 
                 for float_image in self.float_images:
-                    frame = self.img_draw(frame, float_image)
+                    if float_image.is_visible():
+                        frame = self.img_draw(frame, float_image)
 
                 frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
                 if self.float_images:
-                    for hand in self.hand_detector.hands_list:
-                        if self.drag_gesture(hand):
-                            # Make index finger the cursor
-                            cursor = hand[1][
-                                INDEX_FINGER_TIP
-                            ]
-                            for float_image in self.float_images:
-                                float_image.drag(cursor)
+                    self.check_gestures()
 
                 self.cam.send(frame)
                 self.cam.sleep_until_next_frame()
@@ -114,6 +124,25 @@ class App(tk.Tk):
                     )
 
         self.after(10, self.update_capture)
+
+    def check_gestures(self):
+        for hand in self.hand_detector.hands_list:
+            if self.drag_gesture(hand):
+                # Make index finger the cursor
+                cursor = hand[1][INDEX_FINGER_TIP]
+                for float_image in self.float_images:
+                    float_image.drag(cursor)
+
+        if len(self.hand_detector.hands_list) > 1:
+            for i in range(2):
+                if self.delete_gesture(self.hand_detector.hands_list[i]):
+                    hand = self.hand_detector.hands_list[(i + 1) % 2]
+                    if hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]:
+                        cursor = hand[1][
+                            INDEX_FINGER_TIP
+                        ]
+                        for float_image in self.float_images:
+                            float_image.delete(cursor)
 
     def overlay_transparent(self, bg, fg, pos=(0, 0)):
         """Overlays a png image over a jpg image.
@@ -467,6 +496,7 @@ class FloatImage:
             self.png = False
 
         self.size = self.img.shape[:2]
+        self.visible = True
 
     def drag(self, cursor):
         cursor_x, cursor_y = cursor
@@ -476,8 +506,21 @@ class FloatImage:
             self.set_pos_x(cursor_x - w // 2)
             self.set_pos_y(cursor_y - h // 2)
 
+    def delete(self, cursor):
+        cursor_x, cursor_y = cursor
+        x, y = self.get_pos_x(), self.get_pos_y()
+        w, h = self.get_width(), self.get_height()
+        if x < cursor_x < x + w and y < cursor_y < y + h:
+            self.invisible()
+
+    def invisible(self):
+        self.visible = False
+
     def is_png(self):
         return self.png
+
+    def is_visible(self):
+        return self.visible
 
     def get_width(self):
         return self.size[1]
