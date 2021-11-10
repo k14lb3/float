@@ -12,13 +12,13 @@ from constants import *
 class App(tk.Tk):
     def __init__(self, cam, float_images, cap_src=0):
         """Initializes the app.
-        
+
         Keyword arguments:
         cam -- Virtual cam source.
         float_images -- List of FloatImages objects.
         cap_src -- Capture source.
         """
-        
+
         tk.Tk.__init__(self)
         self.overrideredirect(True)
         self.cam = cam
@@ -40,6 +40,27 @@ class App(tk.Tk):
         self.init_capture()
         self.hand_detector = HandDetector()
         self.update_capture()
+
+    def drag_gesture(self):
+        if (
+            self.hand_detector.get_distance(
+                self.hand_detector.hands_list[0][1][INDEX_FINGER_TIP],
+                self.hand_detector.hands_list[0][1][MIDDLE_FINGER_TIP],
+            )
+            < 40
+            and (
+                self.hand_detector.hands_list[0][1][INDEX_FINGER_TIP][1]
+                < self.hand_detector.hands_list[0][1][INDEX_FINGER_DIP][1]
+            )
+            and (
+                self.hand_detector.hands_list[0][1][MIDDLE_FINGER_TIP][1]
+                < self.hand_detector.hands_list[0][1][MIDDLE_FINGER_DIP][1]
+            )
+        ):
+
+            print(self.hand_detector.hands_list[0][0])
+            return True
+        return False
 
     def update_capture(self):
         if not self.dragging:
@@ -67,13 +88,7 @@ class App(tk.Tk):
 
                 if self.float_images:
                     if self.hand_detector.hands_list:
-                        if (
-                            self.hand_detector.get_distance(
-                                self.hand_detector.hands_list[0][1][INDEX_FINGER_TIP],
-                                self.hand_detector.hands_list[0][1][MIDDLE_FINGER_TIP],
-                            )
-                            < 40
-                        ):
+                        if self.drag_gesture():
                             # Make index finger the cursor
                             cursor = self.hand_detector.hands_list[0][1][
                                 INDEX_FINGER_TIP
@@ -103,14 +118,14 @@ class App(tk.Tk):
 
     def overlay_transparent(self, bg, fg, pos=(0, 0)):
         """Overlays a png image over a jpg image.
-        
+
         Keyword arguments:
         bg -- Background image.
         fg -- Foreground image.
         pos -- Position of foreground over the background.
         Return: Background image overlayed with the foreground image.
         """
-        
+
         bg_h, bg_w, bg_c = bg.shape
         fg_h, fg_w = fg.shape[:2]
         pos_x, pos_y = pos
@@ -440,12 +455,12 @@ class HandDetector:
 class FloatImage:
     def __init__(self, path, pos):
         """Initializes an interactable image using hand gestures.
-        
+
         Keyword arguments:
         path -- File path of the image.
         pos -- Position of the image.
         """
-        
+
         self.path = path
         self.pos = pos
 
