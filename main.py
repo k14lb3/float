@@ -41,24 +41,24 @@ class App(tk.Tk):
         self.hand_detector = HandDetector()
         self.update_capture()
 
-    def drag_gesture(self):
+    def drag_gesture(self, hands):
         if (
             self.hand_detector.get_distance(
-                self.hand_detector.hands_list[0][1][INDEX_FINGER_TIP],
-                self.hand_detector.hands_list[0][1][MIDDLE_FINGER_TIP],
+                hands[1][INDEX_FINGER_TIP],
+                hands[1][MIDDLE_FINGER_TIP],
             )
             < 40
             and (
-                self.hand_detector.hands_list[0][1][INDEX_FINGER_TIP][1]
-                < self.hand_detector.hands_list[0][1][INDEX_FINGER_DIP][1]
+                hands[1][INDEX_FINGER_TIP][1]
+                < hands[1][INDEX_FINGER_DIP][1]
             )
             and (
-                self.hand_detector.hands_list[0][1][MIDDLE_FINGER_TIP][1]
-                < self.hand_detector.hands_list[0][1][MIDDLE_FINGER_DIP][1]
+                hands[1][MIDDLE_FINGER_TIP][1]
+                < hands[1][MIDDLE_FINGER_DIP][1]
             )
         ):
 
-            return True
+            return hands
         return False
 
     def update_capture(self):
@@ -86,10 +86,10 @@ class App(tk.Tk):
                 frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
                 if self.float_images:
-                    if self.hand_detector.hands_list:
-                        if self.drag_gesture():
+                    for hand in self.hand_detector.hands_list:
+                        if self.drag_gesture(hand):
                             # Make index finger the cursor
-                            cursor = self.hand_detector.hands_list[0][1][
+                            cursor = hand[1][
                                 INDEX_FINGER_TIP
                             ]
                             for float_image in self.float_images:
