@@ -420,11 +420,7 @@ class HandDetector:
                 results.multi_handedness, results.multi_hand_landmarks
             ):
                 hand = []
-                if handedness.classification[0].label == "Left":
-                    hand.append("Right")
-                else:
-                    hand.append("Left")
-
+                hand.append(handedness.classification[0].label)
                 hand.append([])
                 for landmark in list(hand_landmarks.landmark):
                     hand[1].append(
