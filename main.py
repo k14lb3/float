@@ -58,7 +58,6 @@ class App(tk.Tk):
             )
         ):
 
-            print(self.hand_detector.hands_list[0][0])
             return True
         return False
 
