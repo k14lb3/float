@@ -79,7 +79,7 @@ class App(tk.Tk):
                                 INDEX_FINGER_TIP
                             ]
                             for float_image in self.float_images:
-                                float_image.move(cursor)
+                                float_image.drag(cursor)
 
                 self.cam.send(frame)
                 self.cam.sleep_until_next_frame()
@@ -457,7 +457,7 @@ class FloatImage:
 
         self.size = self.img.shape[:2]
 
-    def move(self, cursor):
+    def drag(self, cursor):
         cursor_x, cursor_y = cursor
         x, y = self.get_pos_x(), self.get_pos_y()
         w, h = self.get_width(), self.get_height()
