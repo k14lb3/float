@@ -23,21 +23,25 @@ class App(tk.Tk):
         self.overrideredirect(True)
         self.cam = cam
         self.cap_src = cap_src
-        self.dragging = False
         self.width = 816
-        self.height = 582
+        self.height = 591
         self.float_images = float_images
         self.geometry(
             f"{self.width}x{self.height}"
             f"+{self.winfo_screenwidth()//2 - self.width//2}"
             f"+{self.winfo_screenheight()//2 - self.height//2}"
         )
+        self.dragging = False
+        self.cam_preview = True
+        self.gesture_control = True
         self.configure(bg=COLOR_GRAY)
         self.init_images()
         self.init_title_bar()
         self.init_btn_settings()
         self.init_btn_import()
         self.init_capture()
+        self.init_cam_preview_switch()
+        self.init_gesture_control_switch()
         self.hand_detector = HandDetector()
         self.update_capture()
 
@@ -92,7 +96,6 @@ class App(tk.Tk):
             success, frame = self.cap.get_video_capture_frame()
 
             if success:
-
                 self.hand_detector.hands_list = []
                 frame = self.hand_detector.find_hands(frame, True)
 
@@ -103,24 +106,36 @@ class App(tk.Tk):
                 frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
                 if self.float_images:
-                    self.check_gestures()
+                    if self.gesture_control:
+                        self.check_gestures()
 
                 self.cam.send(frame)
                 self.cam.sleep_until_next_frame()
 
-                frame_arr = Image.fromarray(frame)
-                frame_arr = frame_resize(frame_arr)
-                self.cap_frame = ImageTk.PhotoImage(image=frame_arr)
-                if self.cap_frame.height() != CAPTURE_WIDTH:
-                    self.canvas_camera.create_image(
-                        ((CAPTURE_WIDTH // 2) - (frame_arr.size[0] // 2)),
-                        0,
-                        image=self.cap_frame,
-                        anchor=tk.NW,
-                    )
+                if self.cam_preview:
+                    frame_arr = Image.fromarray(frame)
+                    frame_arr = frame_resize(frame_arr)
+                    self.cap_frame = ImageTk.PhotoImage(image=frame_arr)
+                    if self.cap_frame.height() != CAPTURE_WIDTH:
+                        self.canvas_camera.create_image(
+                            ((CAPTURE_WIDTH // 2) - (frame_arr.size[0] // 2)),
+                            0,
+                            image=self.cap_frame,
+                            anchor=tk.NW,
+                        )
+                    else:
+                        self.canvas_camera.create_image(
+                            0, 0, image=self.cap_frame, anchor=tk.NW
+                        )
                 else:
-                    self.canvas_camera.create_image(
-                        0, 0, image=self.cap_frame, anchor=tk.NW
+                    self.canvas_camera.delete(tk.ALL)
+                    self.canvas_camera.create_text(
+                        216,
+                        184,
+                        text="Preview disabled",
+                        fill=COLOR_WHITE,
+                        font="Consolas 24",
+                        anchor=tk.NW,
                     )
 
         self.after(10, self.update_capture)
@@ -138,9 +153,7 @@ class App(tk.Tk):
                 if self.delete_gesture(self.hand_detector.hands_list[i]):
                     hand = self.hand_detector.hands_list[(i + 1) % 2]
                     if hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]:
-                        cursor = hand[1][
-                            INDEX_FINGER_TIP
-                        ]
+                        cursor = hand[1][INDEX_FINGER_TIP]
                         for float_image in self.float_images:
                             float_image.delete(cursor)
 
@@ -270,6 +283,57 @@ class App(tk.Tk):
 
         return frame
 
+    def init_cam_preview_switch(self):
+        def toggle_cam_preview(switch):
+            if self.cam_preview:
+                switch.config(image=self.img_toggle_switch_off)
+            else:
+                switch.config(image=self.img_toggle_switch_on)
+            self.cam_preview = not self.cam_preview
+
+        label = tk.Label(
+            self,
+            text="Camera Preview",
+            font="Consolas 14",
+            fg=COLOR_WHITE,
+            bg=COLOR_GRAY,
+            bd=-2,
+        )
+        label.place(x=48, y=543)
+
+        toggle_switch = tk.Label(
+            self, image=self.img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
+        )
+        toggle_switch.place(w=42, h=21, x=198, y=544)
+
+        toggle_switch.bind("<Button-1>", lambda _: toggle_cam_preview(toggle_switch))
+
+    def init_gesture_control_switch(self):
+        def toggle_gesture_control(switch):
+            if self.gesture_control:
+                switch.config(image=self.img_toggle_switch_off)
+            else:
+                switch.config(image=self.img_toggle_switch_on)
+            self.gesture_control = not self.gesture_control
+
+        label = tk.Label(
+            self,
+            text="Gesture Control",
+            font="Consolas 14",
+            fg=COLOR_WHITE,
+            bg=COLOR_GRAY,
+            bd=-2,
+        )
+        label.place(x=280, y=543)
+        toggle_switch = tk.Label(
+            self, image=self.img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
+        )
+        toggle_switch.place(w=42, h=21, x=440, y=544)
+
+        toggle_switch.bind(
+            "<Button-1>", lambda _: toggle_gesture_control(toggle_switch)
+        )
+
     def init_capture(self):
         self.cap = Capture(self.cap_src)
 
@@ -365,6 +429,12 @@ class App(tk.Tk):
         self.img_close = tk.PhotoImage(file=PATH_ICONS + "close.png")
         self.img_cog = tk.PhotoImage(file=PATH_ICONS + "cog.png")
         self.img_file_image = tk.PhotoImage(file=PATH_ICONS + "file-image.png")
+        self.img_toggle_switch_off = tk.PhotoImage(
+            file=PATH_ICONS + "toggle-switch/off.png"
+        )
+        self.img_toggle_switch_on = tk.PhotoImage(
+            file=PATH_ICONS + "toggle-switch/on.png"
+        )
 
 
 class Capture:
