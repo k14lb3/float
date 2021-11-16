@@ -1,5 +1,6 @@
 import os
 import math
+from ctypes import windll
 import cv2 as cv
 import numpy as np
 import mediapipe as mp
@@ -21,65 +22,20 @@ class App(tk.Tk):
 
         tk.Tk.__init__(self)
         self.overrideredirect(True)
-        self.cam = cam
-        self.cap_src = cap_src
-        self.width = 816
-        self.height = 591
-        self.float_images = float_images
-        self.geometry(
-            f"{self.width}x{self.height}"
-            f"+{self.winfo_screenwidth()//2 - self.width//2}"
-            f"+{self.winfo_screenheight()//2 - self.height//2}"
-        )
-        self.dragging = False
-        self.cam_preview = True
-        self.gesture_control = True
         self.configure(bg=COLOR_GRAY)
-        self.init_images()
+        self.init_variables(cam, float_images, cap_src)
+        self.init_icons()
         self.init_title_bar()
         self.init_btn_settings()
         self.init_btn_import()
         self.init_capture()
         self.init_cam_preview_switch()
         self.init_gesture_control_switch()
-        self.hand_detector = HandDetector()
         self.update_capture()
-
-    def drag_gesture(self, hand):
-        if (
-            self.hand_detector.get_distance(
-                hand[1][INDEX_FINGER_TIP],
-                hand[1][MIDDLE_FINGER_TIP],
-            )
-            < 40
-            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1])
-            and (hand[1][MIDDLE_FINGER_TIP][1] < hand[1][MIDDLE_FINGER_DIP][1])
-        ):
-
-            return hand
-        return False
-
-    def delete_gesture(self, hand):
-        if (
-            self.hand_detector.get_distance(
-                hand[1][MIDDLE_FINGER_TIP],
-                hand[1][THUMB_TIP],
-            )
-            < 30
-            and self.hand_detector.get_distance(
-                hand[1][RING_FINGER_TIP],
-                hand[1][THUMB_TIP],
-            )
-            < 30
-            and self.hand_detector.get_distance(
-                hand[1][PINKY_TIP],
-                hand[1][THUMB_TIP],
-            )
-            < 30
-            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1])
-        ):
-            return hand
-        return False
+        self.after(10, lambda: self.set_appwindow())
+        self.title("Float")
+        self.iconbitmap("icon.ico")
+        self.center_window()
 
     def update_capture(self):
         if not self.dragging:
@@ -142,7 +98,7 @@ class App(tk.Tk):
 
     def check_gestures(self):
         for hand in self.hand_detector.hands_list:
-            if self.drag_gesture(hand):
+            if self.GESTURES[GESTURE_DRAG](hand):
                 # Make index finger the cursor
                 cursor = hand[1][INDEX_FINGER_TIP]
                 for float_image in self.float_images:
@@ -150,73 +106,73 @@ class App(tk.Tk):
 
         if len(self.hand_detector.hands_list) > 1:
             for i in range(2):
-                if self.delete_gesture(self.hand_detector.hands_list[i]):
+                if self.GESTURES[GESTURE_DELETE](self.hand_detector.hands_list[i]):
                     hand = self.hand_detector.hands_list[(i + 1) % 2]
                     if hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]:
                         cursor = hand[1][INDEX_FINGER_TIP]
                         for float_image in self.float_images:
                             float_image.delete(cursor)
 
-    def overlay_transparent(self, bg, fg, pos=(0, 0)):
-        """Overlays a png image over a jpg image.
-
-        Keyword arguments:
-        bg -- Background image.
-        fg -- Foreground image.
-        pos -- Position of foreground over the background.
-        Return: Background image overlayed with the foreground image.
-        """
-
-        bg_h, bg_w, bg_c = bg.shape
-        fg_h, fg_w = fg.shape[:2]
-        pos_x, pos_y = pos
-
-        # Create mask from alpha
-        *_, fg_alpha = cv.split(fg)
-
-        # Convert mask from foreground to BGRA which
-        # is the same size as the foreground to
-        # be able to use bitwise operation
-        fg_mask_bgra = cv.cvtColor(fg_alpha, cv.COLOR_GRAY2BGRA)
-        fg_rgba = cv.bitwise_and(fg, fg_mask_bgra)
-
-        # Convert image to BGR which is the same size
-        # as the background mask to be able to use
-        # bitwise operation
-        fg_rgb = cv.cvtColor(fg_rgba, cv.COLOR_BGRA2BGR)
-
-        # Create a blank image of the same size
-        # with the background for the full foreground mask
-        fg_mask_full = np.zeros((bg_h, bg_w, bg_c), np.uint8)
-
-        # Replace full foreground mask at the given position
-        # with the RGB foreground
-        fg_mask_full[pos_y : pos_y + fg_h, pos_x : pos_x + fg_w] = fg_rgb
-
-        # Convert mask from foreground to BGR which
-        # is the same size as the background to
-        # be able to use bitwise operation
-        fg_mask_bgr = cv.cvtColor(fg_alpha, cv.COLOR_GRAY2BGR)
-
-        # Invert mask
-        fg_mask_bgr_inv = cv.bitwise_not(fg_mask_bgr)
-
-        # Create a blank image of the same size with the background
-        bg_mask_full = np.ones((bg_h, bg_w, bg_c), np.uint8) * 255
-
-        # Replace full background mask at the given position
-        # with the RGB foreground
-        bg_mask_full[pos_y : pos_y + fg_h, pos_x : pos_x + fg_w] = fg_mask_bgr_inv
-
-        # Mask background
-        bg_masked = cv.bitwise_and(bg, bg_mask_full)
-
-        # Put the masked foreground to the masked background
-        img = cv.bitwise_or(bg_masked, fg_mask_full)
-
-        return img
-
     def img_draw(self, frame, float_image):
+        def overlay_transparent(bg, fg, pos=(0, 0)):
+            """Overlays a png image over a jpg image.
+
+            Keyword arguments:
+            bg -- Background image.
+            fg -- Foreground image.
+            pos -- Position of foreground over the background.
+            Return: Background image overlayed with the foreground image.
+            """
+
+            bg_h, bg_w, bg_c = bg.shape
+            fg_h, fg_w = fg.shape[:2]
+            pos_x, pos_y = pos
+
+            # Create mask from alpha
+            *_, fg_alpha = cv.split(fg)
+
+            # Convert mask from foreground to BGRA which
+            # is the same size as the foreground to
+            # be able to use bitwise operation
+            fg_mask_bgra = cv.cvtColor(fg_alpha, cv.COLOR_GRAY2BGRA)
+            fg_rgba = cv.bitwise_and(fg, fg_mask_bgra)
+
+            # Convert image to BGR which is the same size
+            # as the background mask to be able to use
+            # bitwise operation
+            fg_rgb = cv.cvtColor(fg_rgba, cv.COLOR_BGRA2BGR)
+
+            # Create a blank image of the same size
+            # with the background for the full foreground mask
+            fg_mask_full = np.zeros((bg_h, bg_w, bg_c), np.uint8)
+
+            # Replace full foreground mask at the given position
+            # with the RGB foreground
+            fg_mask_full[pos_y : pos_y + fg_h, pos_x : pos_x + fg_w] = fg_rgb
+
+            # Convert mask from foreground to BGR which
+            # is the same size as the background to
+            # be able to use bitwise operation
+            fg_mask_bgr = cv.cvtColor(fg_alpha, cv.COLOR_GRAY2BGR)
+
+            # Invert mask
+            fg_mask_bgr_inv = cv.bitwise_not(fg_mask_bgr)
+
+            # Create a blank image of the same size with the background
+            bg_mask_full = np.ones((bg_h, bg_w, bg_c), np.uint8) * 255
+
+            # Replace full background mask at the given position
+            # with the RGB foreground
+            bg_mask_full[pos_y : pos_y + fg_h, pos_x : pos_x + fg_w] = fg_mask_bgr_inv
+
+            # Mask background
+            bg_masked = cv.bitwise_and(bg, bg_mask_full)
+
+            # Put the masked foreground to the masked background
+            img = cv.bitwise_or(bg_masked, fg_mask_full)
+
+            return img
+
         pos = []
         frame_h, frame_w = frame.shape[:2]
         w, h = float_image.get_width(), float_image.get_height()
@@ -250,7 +206,7 @@ class App(tk.Tk):
             else:
                 pos = (x, y)
 
-            frame[:] = self.overlay_transparent(frame, float_image.img, pos)
+            frame[:] = overlay_transparent(frame, float_image.img, pos)
         else:
             # Top Left
             if x <= 0 and y <= 0:
@@ -282,6 +238,22 @@ class App(tk.Tk):
             frame[pos] = float_image.img
 
         return frame
+
+    def center_window(self):
+        self.geometry(
+            f"{self.width}x{self.height}"
+            f"+{self.winfo_screenwidth()//2 - self.width//2}"
+            f"+{self.winfo_screenheight()//2 - self.height//2}"
+        )
+
+    def set_appwindow(self):
+        hwnd = windll.user32.GetParent(self.winfo_id())
+        style = windll.user32.GetWindowLongPtrW(hwnd, GWL_EXSTYLE)
+        style = style & ~WS_EX_TOOLWINDOW
+        style = style | WS_EX_APPWINDOW
+        windll.user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style)
+        self.wm_withdraw()
+        self.after(10, lambda: self.wm_deiconify())
 
     def init_cam_preview_switch(self):
         def toggle_cam_preview(switch):
@@ -339,39 +311,65 @@ class App(tk.Tk):
 
         self.canvas_camera = tk.Canvas(self, bg=COLOR_BLACK, highlightthickness=0)
         self.canvas_camera.place(
-            width=CAPTURE_WIDTH,
-            height=CAPTURE_HEIGHT,
+            w=CAPTURE_WIDTH,
+            h=CAPTURE_HEIGHT,
             x=48,
             y=128,
         )
 
     def init_btn_settings(self):
         btn_settings = tk.Label(self, image=self.img_cog, bg=COLOR_GRAY, cursor="hand2")
-        btn_settings.place(width=56, height=56, x=self.width - 56 - 48, y=49)
+        btn_settings.place(w=56, h=56, x=self.width - 56 - 48, y=49)
 
     def init_btn_import(self):
         btn_import = tk.Label(
             self, image=self.img_file_image, bg=COLOR_BLUE, cursor="hand2"
         )
-        btn_import.place(width=56, height=56, x=48, y=49)
+        btn_import.place(w=56, h=56, x=48, y=49)
 
     def init_title_bar(self):
+        def win_drag__init(e):
+            # Get cursor position relative to the window
+            self.cursor_rel_x, self.cursor_rel_y = e.x, e.y
+            self.dragging = True
+
+        def win_drag(e):
+            self.geometry(
+                f"+{e.x_root - self.cursor_rel_x}" f"+{e.y_root - self.cursor_rel_y}"
+            )
+
+        def win_drag__release():
+            self.dragging = False
+
+        def win_minimize():
+            self.withdraw()
+            self.overrideredirect(False)
+            self.iconify()
+            self.attributes("-alpha", 0.0)
+            self.bind("<Map>", lambda _: win_restore())
+
+        def win_restore():
+            self.overrideredirect(True)
+            self.after(10, lambda: self.set_appwindow())
+            self.attributes("-alpha", 1.0)
+            self.unbind("<Map>")
+
         # Create base
         title_bar = tk.Frame(self, bg=COLOR_BLACK, relief="flat")
-        title_bar.place(width=self.width, height=25, x=0, y=0)
+        title_bar.place(w=self.width, h=25, x=0, y=0)
 
-        title_bar.bind("<Button-1>", self.win_drag__init)
-        title_bar.bind("<B1-Motion>", self.win_drag)
-        title_bar.bind("<ButtonRelease-1>", self.win_drag__release)
+        title_bar.bind("<Button-1>", win_drag__init)
+        title_bar.bind("<B1-Motion>", win_drag)
+        title_bar.bind("<ButtonRelease-1>", lambda _: win_drag__release())
 
         # Create title
         title = tk.Label(
             title_bar, text="Float", font="Consolas 18 bold", fg="#01ADB5", bg="#232934"
         )
         title.pack(side="left")
-        title.bind("<Button-1>", self.win_drag__init)
-        title.bind("<B1-Motion>", self.win_drag)
-        title.bind("<ButtonRelease-1>", self.win_drag__release)
+        title.bind("<Button-1>", win_drag__init)
+        title.bind("<B1-Motion>", win_drag)
+        title.bind("<ButtonRelease-1>", lambda _: win_drag__release())
 
         # Create minimize button
         btn_minimize = tk.Label(
@@ -380,13 +378,13 @@ class App(tk.Tk):
             image=self.img_minimize,
         )
         btn_minimize.bind(
-            "<Enter>", lambda _: btn_minimize.config(background="#343d4a")
+            "<Enter>", lambda _: btn_minimize.config(bg="#343d4a")
         )
         btn_minimize.bind(
-            "<Leave>", lambda _: btn_minimize.config(background=COLOR_BLACK)
+            "<Leave>", lambda _: btn_minimize.config(bg=COLOR_BLACK)
         )
-        btn_minimize.bind("<Button-1>", self.win_minimize)
-        btn_minimize.place(height=25, width=50, x=self.width - 100, y=0)
+        btn_minimize.bind("<Button-1>", lambda _: win_minimize())
+        btn_minimize.place(h=25, w=50, x=self.width - 100, y=0)
 
         # Create close button
         btn_close = tk.Label(
@@ -394,37 +392,12 @@ class App(tk.Tk):
             bg=COLOR_BLACK,
             image=self.img_close,
         )
-        btn_close.bind("<Enter>", lambda _: btn_close.config(background="#ed4245"))
-        btn_close.bind("<Leave>", lambda _: btn_close.config(background=COLOR_BLACK))
+        btn_close.bind("<Enter>", lambda _: btn_close.config(bg="#ed4245"))
+        btn_close.bind("<Leave>", lambda _: btn_close.config(bg=COLOR_BLACK))
         btn_close.bind("<Button-1>", lambda _: self.destroy())
-        btn_close.place(height=25, width=50, x=self.width - 50, y=0)
+        btn_close.place(h=25, w=50, x=self.width - 50, y=0)
 
-    def win_drag__init(self, e):
-        # Get cursor position relative to the window
-        self.cursor_rel_x, self.cursor_rel_y = e.x, e.y
-        self.dragging = True
-
-    def win_drag(self, e):
-        self.geometry(
-            f"+{e.x_root - self.cursor_rel_x}" f"+{e.y_root - self.cursor_rel_y}"
-        )
-
-    def win_drag__release(self, _):
-        self.dragging = False
-
-    def win_minimize(self, _):
-        self.withdraw()
-        self.overrideredirect(False)
-        self.iconify()
-        self.attributes("-alpha", 0.0)
-        self.bind("<Map>", self.win_restore)
-
-    def win_restore(self, _):
-        self.overrideredirect(True)
-        self.attributes("-alpha", 1.0)
-        self.unbind("<Map>")
-
-    def init_images(self):
+    def init_icons(self):
         self.img_minimize = tk.PhotoImage(file=PATH_ICONS + "minimize.png")
         self.img_close = tk.PhotoImage(file=PATH_ICONS + "close.png")
         self.img_cog = tk.PhotoImage(file=PATH_ICONS + "cog.png")
@@ -435,6 +408,42 @@ class App(tk.Tk):
         self.img_toggle_switch_on = tk.PhotoImage(
             file=PATH_ICONS + "toggle-switch/on.png"
         )
+
+    def init_variables(self, cam, float_images, cap_src):
+        self.cam = cam
+        self.float_images = float_images
+        self.cap_src = cap_src
+        self.width = 816
+        self.height = 591
+        self.hand_detector = HandDetector()
+        self.dragging = False
+        self.cam_preview = True
+        self.gesture_control = True
+        self.GESTURES = {
+            GESTURE_DRAG: lambda hand: self.hand_detector.get_distance(
+                hand[1][INDEX_FINGER_TIP],
+                hand[1][MIDDLE_FINGER_TIP],
+            )
+            < 40
+            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1])
+            and (hand[1][MIDDLE_FINGER_TIP][1] < hand[1][MIDDLE_FINGER_DIP][1]),
+            GESTURE_DELETE: lambda hand: self.hand_detector.get_distance(
+                hand[1][MIDDLE_FINGER_TIP],
+                hand[1][THUMB_TIP],
+            )
+            < 30
+            and self.hand_detector.get_distance(
+                hand[1][RING_FINGER_TIP],
+                hand[1][THUMB_TIP],
+            )
+            < 30
+            and self.hand_detector.get_distance(
+                hand[1][PINKY_TIP],
+                hand[1][THUMB_TIP],
+            )
+            < 30
+            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]),
+        }
 
 
 class Capture:
