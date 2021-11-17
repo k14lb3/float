@@ -36,8 +36,7 @@ class App(tk.Tk):
         self.title("Float")
         self.iconbitmap("icon.ico")
         self.center_window()
-        appid='mycompany.myproduct.subproduct.version'
-        windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID('mycompany.myproduct.subproduct.version')
 
     def update_capture(self):
         if not self.dragging:
