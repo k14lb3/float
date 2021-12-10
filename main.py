@@ -5,26 +5,40 @@ import cv2 as cv
 import numpy as np
 import mediapipe as mp
 import tkinter as tk
+from tkinter import ttk
 from PIL import Image, ImageTk
 import pyvirtualcam
 from constants import *
 
 
 class App(tk.Tk):
-    def __init__(self, cam, float_images, cap_src=0):
+    def __init__(self, cam, cap_src=0):
         """Initializes the app.
 
         Keyword arguments:
         cam -- Virtual cam source.
-        float_images -- List of FloatImages objects.
         cap_src -- Capture source.
         """
 
         tk.Tk.__init__(self)
+
+        self.style = ttk.Style()
+        self.style.theme_use("clam")
+        self.style.configure(
+            "Vertical.TScrollbar",
+            gripcount=0,
+            background="#01ADB5",
+            darkcolor="#232932",
+            lightcolor="#232932",
+            troughcolor="#232932",
+            bordercolor="#232932",
+            arrowcolor="#EEEEEE",
+        )
+
         self.overrideredirect(True)
         self.configure(bg=COLOR_GRAY)
-        self.init_variables(cam, float_images, cap_src)
-        self.init_icons()
+        self.init_variables(cam, cap_src)
+        self.init_imgs()
         self.init_title_bar()
         self.init_btn_settings()
         self.init_btn_import()
@@ -36,10 +50,12 @@ class App(tk.Tk):
         self.title("Float")
         self.iconbitmap("icon.ico")
         self.center_window()
-        windll.shell32.SetCurrentProcessExplicitAppUserModelID('mycompany.myproduct.subproduct.version')
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "mycompany.myproduct.subproduct.version"
+        )
 
     def update_capture(self):
-        if not self.dragging:
+        if not self.is_dragging():
 
             def frame_resize(img):
                 # Resize by maintaining the aspect ratio by determining what is
@@ -56,8 +72,8 @@ class App(tk.Tk):
                 self.hand_detector.hands_list = []
                 frame = self.hand_detector.find_hands(frame, True)
 
-                for float_image in self.float_images:
-                    if float_image.is_visible():
+                if self.float_images:
+                    for float_image in self.float_images:
                         frame = self.img_draw(frame, float_image)
 
                 frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
@@ -112,7 +128,7 @@ class App(tk.Tk):
                     if hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]:
                         cursor = hand[1][INDEX_FINGER_TIP]
                         for float_image in self.float_images:
-                            float_image.delete(cursor)
+                            float_image.delete(self.float_images, cursor)
 
     def img_draw(self, frame, float_image):
         def overlay_transparent(bg, fg, pos=(0, 0)):
@@ -267,17 +283,17 @@ class App(tk.Tk):
         label = tk.Label(
             self,
             text="Camera Preview",
-            font="Consolas 14",
+            font="Consolas 16",
             fg=COLOR_WHITE,
             bg=COLOR_GRAY,
-            bd=-2,
+            bd=0,
         )
         label.place(x=48, y=543)
 
         toggle_switch = tk.Label(
             self, image=self.img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
         )
-        toggle_switch.place(w=42, h=21, x=198, y=544)
+        toggle_switch.place(w=42, h=21, x=226, y=546)
 
         toggle_switch.bind("<Button-1>", lambda _: toggle_cam_preview(toggle_switch))
 
@@ -292,16 +308,16 @@ class App(tk.Tk):
         label = tk.Label(
             self,
             text="Gesture Control",
-            font="Consolas 14",
+            font="Consolas 16",
             fg=COLOR_WHITE,
             bg=COLOR_GRAY,
-            bd=-2,
+            bd=0,
         )
-        label.place(x=280, y=543)
+        label.place(x=306, y=543)
         toggle_switch = tk.Label(
             self, image=self.img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
         )
-        toggle_switch.place(w=42, h=21, x=440, y=544)
+        toggle_switch.place(w=42, h=21, x=493, y=546)
 
         toggle_switch.bind(
             "<Button-1>", lambda _: toggle_gesture_control(toggle_switch)
@@ -323,10 +339,212 @@ class App(tk.Tk):
         btn_settings.place(w=56, h=56, x=self.width - 56 - 48, y=49)
 
     def init_btn_import(self):
-        btn_import = tk.Label(
+        def show_window():
+            win_import = ToplevelWindow(self, "Import image", 372, 303)
+            win_import.btn_names = ["alphabet", "shapes", "imports"]
+            win_import.btn_alphabet = None
+            win_import.btn_shapes = None
+            win_import.btn_imports = None
+            win_import.btn_down = None
+            win_import.btn_up = None
+
+            win_import.imgs_alphabet = []
+            win_import.imgs_shapes = []
+            win_import.imgs_imports = []
+
+            def show_category_imgs(btn_name):
+                # Initiate frame of the category images
+                win_import.frame_imgs = tk.Frame(win_import, bg=COLOR_GRAY)
+                win_import.frame_imgs.place(w=340, h=166, x=16, y=59)
+
+                btn = getattr(win_import, f"imgs_{btn_name}")
+                category_imgs = getattr(self, f"imgs_{btn_name}")
+
+                x, y = 0, 0
+                imgs_count = len(category_imgs)
+
+                if imgs_count > 18:
+                    scrollbar__init()
+
+                for i in range(imgs_count):
+                    thumbnail, path = category_imgs[i]
+                    btn.append(
+                        tk.Label(
+                            win_import.frame_imgs,
+                            image=thumbnail,
+                            bg=COLOR_GRAY,
+                            cursor="hand2",
+                        )
+                    )
+                    btn[i].place(w=50, h=50, x=x, y=y)
+
+                    btn[i].bind(
+                        "<Button-1>",
+                        lambda _, path=path: self.float_images.append(
+                            FloatImage(path, (0, 0))
+                        ),
+                    )
+
+                    x += 58
+
+                    if (i + 1) % 6 == 0:
+                        x = 0
+                        y += 58
+
+            def scrollbar__init():
+                # win_import.frame_imgs = tk.Frame(win_import, bg=COLOR_GRAY)
+                win_import.frame_canvas = tk.Canvas(win_import.frame_imgs)
+
+                win_import.scrollbar = ttk.Scrollbar(win_import, orient="vertical")
+                win_import.scrollbar.place(h=166, x=355, y=59)
+
+            def btn_down__init():
+                win_import.btn_down = (
+                    tk.Label(
+                        win_import.frame_imgs,
+                        image=self.img_arrow_down,
+                        bg=COLOR_GRAY,
+                        cursor="hand2",
+                    ),
+                )
+
+                win_import.btn_down.place(w=50, h=50, x=306, y=116)
+
+                win_import.btn_down.bind(
+                    "<Enter>",
+                    lambda _: win_import.btn_down.configure(
+                        image=self.img_arrow_down__hover
+                    ),
+                )
+
+                win_import.btn_down.bind(
+                    "<Leave>",
+                    lambda _: win_import.btn_down.configure(image=self.img_arrow_down),
+                )
+
+            def btn_up__init():
+                pass
+
+
+            def frame_imgs__init():
+                # win_import.frame_imgs = tk.Frame(win_import, bg=COLOR_GRAY)
+                win_import.canvas_imgs = tk.Canvas(win_import, bg=COLOR_GRAY)
+                win_import.frame_imgs = tk.Frame(win_import.canvas_imgs)
+                win_import.canvas_imgs.create_window((0, 0), window=win_import.frame_imgs)
+
+
+            def btn_category__enter(coord):
+                x, y = coord
+                win_import.cursor.place_forget()
+                win_import.cursor.place(w=50, h=3, x=x, y=y)
+                win_import.cursor.configure(bg=COLOR_BLUE)
+
+            def btn_category__select(btn_name):
+                win_import.label_category.configure(text=btn_name.capitalize())
+
+                # Reset category images and cursor to default
+                for name in win_import.btn_names:
+                    getattr(win_import, f"btn_{name}").configure(
+                        image=getattr(self, f"img_{name}"), cursor="hand2"
+                    )
+
+                # Bind events
+                btns_category__bind(btn_name)
+
+                btn = getattr(win_import, f"btn_{btn_name}")
+                btn.configure(
+                    image=getattr(self, f"img_{btn_name}__selected"),
+                    cursor="arrow",
+                )
+                win_import.cursor.configure(bg=COLOR_GRAY)
+
+                setattr(win_import, f"imgs_{btn_name}", [])
+
+                win_import.frame_imgs.destroy()
+
+                # Show images from the given category
+                show_category_imgs(btn_name)
+
+            def btns_category__bind(exclude=None):
+                gap = 0
+                for name in ["alphabet", "shapes", "imports"]:
+                    btn = getattr(win_import, f"btn_{name}")
+
+                    if exclude != name:
+                        if name == "imports":
+                            gap = 290
+                        btn.bind(
+                            "<Enter>",
+                            lambda _, gap=gap: btn_category__enter((16 + gap, 287)),
+                        )
+                        btn.bind(
+                            "<Leave>",
+                            lambda _: win_import.cursor.configure(bg=COLOR_GRAY),
+                        )
+                        btn.bind(
+                            "<Button-1>",
+                            lambda _, name=name: btn_category__select(name),
+                        )
+
+                    else:
+                        btn.unbind("<Enter>")
+                        btn.unbind("<Leave>")
+                        btn.unbind("<Button-1>")
+
+                    gap += 58
+
+            def btns_category__init():
+                gap = 0
+                for btn_name in ["alphabet", "shapes", "imports"]:
+                    if btn_name == "imports":
+                        gap = 290
+
+                    setattr(
+                        win_import,
+                        f"btn_{btn_name}",
+                        tk.Label(
+                            win_import,
+                            image=getattr(self, f"img_{btn_name}"),
+                            bg=COLOR_GRAY,
+                            cursor="hand2",
+                        ),
+                    )
+                    btn = getattr(win_import, f"btn_{btn_name}")
+                    btn.place(w=50, h=40, x=16 + gap, y=247)
+
+                    gap += 58
+
+            # Initialize category label
+            win_import.label_category = tk.Label(
+                win_import,
+                font="Consolas 16",
+                fg=COLOR_WHITE,
+                bg=COLOR_GRAY,
+                border=0,
+            )
+            win_import.label_category.place(x=16, y=27)
+
+            frame_imgs__init()
+
+            tk.Frame(win_import, bg=COLOR_BLACK).place(w=340, h=3, x=16, y=235)
+
+            # Initialize cursor
+            win_import.cursor = tk.Frame(win_import, bg=COLOR_GRAY)
+
+            # Initialize category buttons
+            btns_category__init()
+
+            # Bind events to the buttons
+            btns_category__bind()
+
+            # Select Alphabet as the first one selected by default
+            btn_category__select("alphabet")
+
+        self.btn_import = tk.Label(
             self, image=self.img_file_image, bg=COLOR_BLUE, cursor="hand2"
         )
-        btn_import.place(w=56, h=56, x=48, y=49)
+        self.btn_import.place(w=56, h=56, x=48, y=49)
+        self.btn_import.bind("<Button-1>", lambda _: show_window())
 
     def init_title_bar(self):
         def win_drag__init(e):
@@ -356,40 +574,44 @@ class App(tk.Tk):
             self.unbind("<Map>")
 
         # Create base
-        title_bar = tk.Frame(self, bg=COLOR_BLACK, relief="flat")
-        title_bar.place(w=self.width, h=25, x=0, y=0)
+        self.title_bar = tk.Frame(self, bg=COLOR_BLACK)
+        self.title_bar.place(w=self.width, h=25, x=0, y=0)
 
-        title_bar.bind("<Button-1>", win_drag__init)
-        title_bar.bind("<B1-Motion>", win_drag)
-        title_bar.bind("<ButtonRelease-1>", lambda _: win_drag__release())
+        self.title_bar.bind("<Button-1>", win_drag__init)
+        self.title_bar.bind("<B1-Motion>", win_drag)
+        self.title_bar.bind("<ButtonRelease-1>", lambda _: win_drag__release())
 
         # Create title
-        title = tk.Label(
-            title_bar, text="Float", font="Consolas 18 bold", fg="#01ADB5", bg="#232934"
+        self._title = tk.Label(
+            self.title_bar,
+            text="Float",
+            font="Consolas 18 bold",
+            fg=COLOR_BLUE,
+            bg=COLOR_BLACK,
         )
-        title.pack(side="left")
-        title.bind("<Button-1>", win_drag__init)
-        title.bind("<B1-Motion>", win_drag)
-        title.bind("<ButtonRelease-1>", lambda _: win_drag__release())
+        self._title.pack(side="left")
+        self._title.bind("<Button-1>", win_drag__init)
+        self._title.bind("<B1-Motion>", win_drag)
+        self._title.bind("<ButtonRelease-1>", lambda _: win_drag__release())
 
         # Create minimize button
-        btn_minimize = tk.Label(
-            title_bar,
+        self.btn_minimize = tk.Label(
+            self.title_bar,
             bg=COLOR_BLACK,
             image=self.img_minimize,
         )
-        btn_minimize.bind(
-            "<Enter>", lambda _: btn_minimize.config(bg="#343d4a")
+        self.btn_minimize.bind(
+            "<Enter>", lambda _: self.btn_minimize.config(bg="#343d4a")
         )
-        btn_minimize.bind(
-            "<Leave>", lambda _: btn_minimize.config(bg=COLOR_BLACK)
+        self.btn_minimize.bind(
+            "<Leave>", lambda _: self.btn_minimize.config(bg=COLOR_BLACK)
         )
-        btn_minimize.bind("<Button-1>", lambda _: win_minimize())
-        btn_minimize.place(h=25, w=50, x=self.width - 100, y=0)
+        self.btn_minimize.bind("<Button-1>", lambda _: win_minimize())
+        self.btn_minimize.place(h=25, w=50, x=self.width - 100, y=0)
 
         # Create close button
         btn_close = tk.Label(
-            title_bar,
+            self.title_bar,
             bg=COLOR_BLACK,
             image=self.img_close,
         )
@@ -398,7 +620,7 @@ class App(tk.Tk):
         btn_close.bind("<Button-1>", lambda _: self.destroy())
         btn_close.place(h=25, w=50, x=self.width - 50, y=0)
 
-    def init_icons(self):
+    def init_imgs(self):
         self.img_minimize = tk.PhotoImage(file=PATH_ICONS + "minimize.png")
         self.img_close = tk.PhotoImage(file=PATH_ICONS + "close.png")
         self.img_cog = tk.PhotoImage(file=PATH_ICONS + "cog.png")
@@ -409,10 +631,41 @@ class App(tk.Tk):
         self.img_toggle_switch_on = tk.PhotoImage(
             file=PATH_ICONS + "toggle-switch/on.png"
         )
+        self.img_alphabet = tk.PhotoImage(file=PATH_ICONS + "alphabet/default.png")
+        self.img_alphabet__selected = tk.PhotoImage(
+            file=PATH_ICONS + "alphabet/selected.png"
+        )
+        self.img_shapes = tk.PhotoImage(file=PATH_ICONS + "shapes/default.png")
+        self.img_shapes__selected = tk.PhotoImage(
+            file=PATH_ICONS + "shapes/selected.png"
+        )
+        self.img_imports = tk.PhotoImage(file=PATH_ICONS + "imports/default.png")
+        self.img_imports__selected = tk.PhotoImage(
+            file=PATH_ICONS + "imports/selected.png"
+        )
+        self.img_arrow_down = tk.PhotoImage(file=PATH_ICONS + "arrow/down/default.png")
+        self.img_arrow_down__hover = tk.PhotoImage(
+            file=PATH_ICONS + "arrow/down/hover.png"
+        )
+        self.img_arrow_up = tk.PhotoImage(file=PATH_ICONS + "arrow/up/default.png")
+        self.img_arrow_up__hover = tk.PhotoImage(file=PATH_ICONS + "arrow/up/hover.png")
+        self.imgs_shapes = []
+        self.imgs_alphabet = []
+        self.imgs_imports = []
 
-    def init_variables(self, cam, float_images, cap_src):
+        for category in ["shapes", "alphabet", "imports"]:
+            imgs_path = PATH_IMAGES + f"{category}/"
+            files = os.listdir(imgs_path)
+            if len(files) != 0:
+                for filename in files:
+                    filepath = imgs_path + filename
+                    img = Image.open(filepath)
+                    img.thumbnail((40, 40))
+                    pi_img = ImageTk.PhotoImage(img)
+                    getattr(self, f"imgs_{category}").append([pi_img, filepath])
+
+    def init_variables(self, cam, cap_src):
         self.cam = cam
-        self.float_images = float_images
         self.cap_src = cap_src
         self.width = 816
         self.height = 591
@@ -420,6 +673,7 @@ class App(tk.Tk):
         self.dragging = False
         self.cam_preview = True
         self.gesture_control = True
+        self.float_images = []
         self.GESTURES = {
             GESTURE_DRAG: lambda hand: self.hand_detector.get_distance(
                 hand[1][INDEX_FINGER_TIP],
@@ -445,6 +699,80 @@ class App(tk.Tk):
             < 30
             and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]),
         }
+
+    def is_dragging(self):
+        return self.dragging
+
+    def set_dragging(self, flag):
+        self.dragging = flag
+
+
+class ToplevelWindow(tk.Toplevel):
+    def __init__(self, parent, title, width, height):
+        tk.Toplevel.__init__(self, parent)
+        self.overrideredirect(True)
+        self.configure(bg=COLOR_GRAY)
+        self.grab_set()
+        self.init_variables(parent, width, height)
+        self.init_imgs()
+        self.init_title_bar(title)
+        self.geometry(
+            f"{self.width}x{self.height}"
+            f"+{(parent.winfo_x() + parent.width//2) - (self.width//2)}"
+            f"+{(parent.winfo_y() + parent.height//2) - (self.height//2)}"
+        )
+
+    def init_title_bar(self, title):
+        def win_drag__init(e):
+            # Get cursor position relative to the window
+            self.cursor_rel_x, self.cursor_rel_y = e.x, e.y
+            self.parent.set_dragging(True)
+
+        def win_drag(e):
+            self.geometry(
+                f"+{e.x_root - self.cursor_rel_x}" f"+{e.y_root - self.cursor_rel_y}"
+            )
+
+        def win_drag__release():
+            self.parent.set_dragging(False)
+
+        self.title_bar = tk.Frame(self, bg=COLOR_BLACK)
+        self.title_bar.place(w=self.width, h=25, x=0, y=0)
+
+        self.title_bar.bind("<Button-1>", win_drag__init)
+        self.title_bar.bind("<B1-Motion>", win_drag)
+        self.title_bar.bind("<ButtonRelease-1>", lambda _: win_drag__release())
+
+        self._title = tk.Label(
+            self.title_bar,
+            text=title,
+            font="Consolas 12",
+            fg=COLOR_BLUE,
+            bg=COLOR_BLACK,
+        )
+        self._title.pack(side="left")
+        self._title.bind("<Button-1>", win_drag__init)
+        self._title.bind("<B1-Motion>", win_drag)
+        self._title.bind("<ButtonRelease-1>", lambda _: win_drag__release())
+
+        # Create close button
+        self.btn_close = tk.Label(
+            self.title_bar,
+            bg=COLOR_BLACK,
+            image=self.img_close,
+        )
+        self.btn_close.bind("<Enter>", lambda _: self.btn_close.config(bg="#ed4245"))
+        self.btn_close.bind("<Leave>", lambda _: self.btn_close.config(bg=COLOR_BLACK))
+        self.btn_close.bind("<Button-1>", lambda _: self.destroy())
+        self.btn_close.place(h=25, w=50, x=self.width - 50, y=0)
+
+    def init_imgs(self):
+        self.img_close = self.parent.img_close
+
+    def init_variables(self, parent, width, height):
+        self.parent = parent
+        self.width = width
+        self.height = height
 
 
 class Capture:
@@ -518,10 +846,7 @@ class HandDetector:
 
         img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
 
-        (
-            h,
-            w,
-        ) = img.shape[:2]
+        h, w = img.shape[:2]
 
         if results.multi_hand_landmarks:
             for handedness, hand_landmarks in zip(
@@ -570,13 +895,45 @@ class FloatImage:
 
         if "png" in os.path.splitext(self.path)[1]:
             self.img = cv.imread(self.path, cv.IMREAD_UNCHANGED)
-            self.png = True
+            self.transparent = True if self.img.shape[2] == 4 else False
         else:
             self.img = cv.imread(self.path)
-            self.png = False
+            self.transparent = False
+
+        self.img = self.img_resize(self.img, width=200)
 
         self.size = self.img.shape[:2]
-        self.visible = True
+
+    def img_resize(self, image, width=None, height=None, inter=cv.INTER_AREA):
+        # initialize the dimensions of the image to be resized and
+        # grab the image size
+        dim = None
+        h, w = image.shape[:2]
+
+        # if both the width and height are None, then return the
+        # original image
+        if width is None and height is None:
+            return image
+
+        # check to see if the width is None
+        if width is None:
+            # calculate the ratio of the height and construct the
+            # dimensions
+            r = height / float(h)
+            dim = (int(w * r), height)
+
+        # otherwise, the height is None
+        else:
+            # calculate the ratio of the width and construct the
+            # dimensions
+            r = width / float(w)
+            dim = (width, int(h * r))
+
+        # resize the image
+        resized = cv.resize(image, dim, interpolation=inter)
+
+        # return the resized image
+        return resized
 
     def drag(self, cursor):
         cursor_x, cursor_y = cursor
@@ -586,18 +943,18 @@ class FloatImage:
             self.set_pos_x(cursor_x - w // 2)
             self.set_pos_y(cursor_y - h // 2)
 
-    def delete(self, cursor):
+    def delete(self, float_images, cursor):
         cursor_x, cursor_y = cursor
         x, y = self.get_pos_x(), self.get_pos_y()
         w, h = self.get_width(), self.get_height()
         if x < cursor_x < x + w and y < cursor_y < y + h:
-            self.invisible()
+            float_images.pop()
 
     def invisible(self):
         self.visible = False
 
     def is_png(self):
-        return self.png
+        return self.transparent
 
     def is_visible(self):
         return self.visible
@@ -628,17 +985,8 @@ class FloatImage:
 
 
 def main():
-
-    dir_images = os.listdir(PATH_IMAGES)
-    float_images = []
-
-    for i, PATH_IMAGE in enumerate(dir_images):
-        float_images.append(
-            FloatImage(f"{PATH_IMAGES}/{PATH_IMAGE}", (50 + i * 300, 100))
-        )
-
     with pyvirtualcam.Camera(width=1280, height=720, fps=60) as cam:
-        app = App(cam, float_images)
+        app = App(cam)
         app.mainloop()
 
 

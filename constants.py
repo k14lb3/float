@@ -12,7 +12,7 @@ COLOR_BLUE = "#01ADB5"
 COLOR_WHITE = "#EEEEEE"
 
 """Paths"""
-PATH_IMAGES = "src/images"
+PATH_IMAGES = "src/images/"
 PATH_ICONS = "src/icons/"
 
 """Hand Landmarks"""
