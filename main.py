@@ -91,7 +91,7 @@ class App(tk.Tk):
 
                 self._hand_detector.reset_hands_list()
 
-                frame = self._hand_detector.find_hands(frame, True)
+                frame = self._hand_detector.find_hands(frame, self._hand_landmarks)
 
                 if self._float_images:
                     for float_image in self._float_images:
@@ -551,10 +551,39 @@ class App(tk.Tk):
         self._btn_import.bind("<Button-1>", lambda _: _btn_import__click())
 
         # Initialize settings button.
+        def _btn_settings__click():
+            self._win_settings = ToplevelWindow(self, "Settings", 372, 73)
+
+            def ts__click(switch):
+                if getattr(self, f"_{switch}"):
+                    getattr(self._win_settings, f"_ts_{switch}").config(image=self._img_toggle_switch_off)
+                else:
+                    getattr(self._win_settings, f"_ts_{switch}").config(image=self._img_toggle_switch_on)
+                setattr(self, f"_{switch}", not getattr(self, f"_{switch}"))
+
+            # Initialize hand landmarks toggle switch.
+            tk.Label(
+                self._win_settings,
+                text="Hand Landmarks",
+                font="Consolas 16",
+                fg=COLOR_WHITE,
+                bg=COLOR_GRAY,
+                bd=0,
+            ).place(x=16, y=33)
+            self._win_settings._ts_hand_landmarks = tk.Label(
+                self._win_settings,
+                image=self._img_toggle_switch_off,
+                bg=COLOR_GRAY,
+                cursor="hand2",
+            )
+            self._win_settings._ts_hand_landmarks.place(w=42, h=21, x=372 - 42 - 16, y=36)
+            self._win_settings._ts_hand_landmarks.bind("<Button-1>", lambda _: ts__click("hand_landmarks"))
+
         self._btn_settings = tk.Label(
             self, image=self._img_cog, bg=COLOR_GRAY, cursor="hand2"
         )
         self._btn_settings.place(w=56, h=56, x=self._width - 56 - 48, y=49)
+        self._btn_settings.bind("<Button-1>", lambda _: _btn_settings__click())
 
         def ts__click(switch):
             if getattr(self, f"_{switch}"):
@@ -618,6 +647,7 @@ class App(tk.Tk):
         self._dragging = False
         self._cam_preview = True
         self._gesture_control = True
+        self._hand_landmarks = False
         self._float_images = []
         self._GESTURES = {
             GESTURE_DRAG: lambda hand: self._hand_detector.get_distance(
@@ -844,7 +874,7 @@ class HandDetector:
             draw: Draw the output on the image.
 
         Return:
-            Image if draw is True otherwise None.
+            Image.
         """
 
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
