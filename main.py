@@ -91,7 +91,9 @@ class App(tk.Tk):
 
                 self._hand_detector.reset_hands_list()
 
-                frame = self._hand_detector.find_hands(frame, self._hand_landmarks)
+                frame_raw = self._hand_detector.find_hands(frame, self._hand_landmarks)
+
+                frame = frame_raw.copy()
 
                 if self._float_images:
                     for float_image in self._float_images:
@@ -109,6 +111,14 @@ class App(tk.Tk):
                 self._virtual_cam.sleep_until_next_frame()
 
                 if self._cam_preview:
+                    if self._float_images:
+                        for float_image in self._float_images:
+                            frame = self._img_draw(frame_raw, float_image, flip=True)
+                        frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+
+
+                    frame = cv.flip(frame, 1)
+
                     frame_arr = Image.fromarray(frame)
                     frame_arr = frame_resize(frame_arr)
                     self._cap_frame = ImageTk.PhotoImage(image=frame_arr)
@@ -153,7 +163,7 @@ class App(tk.Tk):
                         for float_image in self._float_images:
                             float_image.delete(self._float_images, cursor)
 
-    def _img_draw(self, frame, float_image):
+    def _img_draw(self, frame, float_image, flip=False):
         def overlay_transparent(bg, fg, pos=(0, 0)):
             """Overlays a png image over a jpg image.
 
@@ -248,7 +258,14 @@ class App(tk.Tk):
             else:
                 pos = (x, y)
 
-            frame[:] = overlay_transparent(frame, float_image.get_img(), pos)
+            frame[:] = overlay_transparent(
+                frame,
+                float_image.get_img()
+                if not flip
+                else cv.flip(float_image.get_img(), 1),
+                pos,
+            )
+
         else:
             # Top Left
             if x <= 0 and y <= 0:
@@ -277,7 +294,9 @@ class App(tk.Tk):
             else:
                 pos = slice(y, y + h), slice(x, x + w)
 
-            frame[pos] = float_image.get_img()
+            frame[pos] = (
+                float_image.get_img() if not flip else cv.flip(float_image.get_img(), 1)
+            )
 
         return frame
 
@@ -556,9 +575,13 @@ class App(tk.Tk):
 
             def ts__click(switch):
                 if getattr(self, f"_{switch}"):
-                    getattr(self._win_settings, f"_ts_{switch}").config(image=self._img_toggle_switch_off)
+                    getattr(self._win_settings, f"_ts_{switch}").config(
+                        image=self._img_toggle_switch_off
+                    )
                 else:
-                    getattr(self._win_settings, f"_ts_{switch}").config(image=self._img_toggle_switch_on)
+                    getattr(self._win_settings, f"_ts_{switch}").config(
+                        image=self._img_toggle_switch_on
+                    )
                 setattr(self, f"_{switch}", not getattr(self, f"_{switch}"))
 
             # Initialize hand landmarks toggle switch.
@@ -576,8 +599,12 @@ class App(tk.Tk):
                 bg=COLOR_GRAY,
                 cursor="hand2",
             )
-            self._win_settings._ts_hand_landmarks.place(w=42, h=21, x=372 - 42 - 16, y=36)
-            self._win_settings._ts_hand_landmarks.bind("<Button-1>", lambda _: ts__click("hand_landmarks"))
+            self._win_settings._ts_hand_landmarks.place(
+                w=42, h=21, x=372 - 42 - 16, y=36
+            )
+            self._win_settings._ts_hand_landmarks.bind(
+                "<Button-1>", lambda _: ts__click("hand_landmarks")
+            )
 
         self._btn_settings = tk.Label(
             self, image=self._img_cog, bg=COLOR_GRAY, cursor="hand2"
@@ -825,7 +852,7 @@ class Capture:
             success, frame = self._cap.read()
 
             if success:
-                return (success, cv.flip(frame, 1))
+                return (success, frame)
 
     def __del__(self):
         if self._cap.isOpened():
