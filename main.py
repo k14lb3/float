@@ -116,7 +116,6 @@ class App(tk.Tk):
                             frame = self._img_draw(frame_raw, float_image, flip=True)
                         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
-
                     frame = cv.flip(frame, 1)
 
                     frame_arr = Image.fromarray(frame)
@@ -388,7 +387,7 @@ class App(tk.Tk):
         # Initialize import image button.
         def _btn_import__click():
             # Initialize variables.
-            self._win_import = ToplevelWindow(self, "Import image", 372, 303)
+            self._win_import = ToplevelWindow(self, "Import image", 372, 298)
             self._win_import.btn_names = ["alphabet", "shapes", "imports"]
             self._win_import.btn_alphabet = None
             self._win_import.btn_shapes = None
@@ -545,7 +544,7 @@ class App(tk.Tk):
                 bg=COLOR_GRAY,
                 border=0,
             )
-            self._win_import.label_category.place(x=16, y=27)
+            self._win_import.label_category.place(x=14, y=27)
 
             frame_imgs__init()
 
@@ -571,7 +570,7 @@ class App(tk.Tk):
 
         # Initialize settings button.
         def _btn_settings__click():
-            self._win_settings = ToplevelWindow(self, "Settings", 372, 73)
+            self._win_settings = ToplevelWindow(self, "Settings", 372, 144)
 
             def ts__click(switch):
                 if getattr(self, f"_{switch}"):
@@ -584,6 +583,44 @@ class App(tk.Tk):
                     )
                 setattr(self, f"_{switch}", not getattr(self, f"_{switch}"))
 
+            # Initilize camera preview toggle switch.
+            tk.Label(
+                self._win_settings,
+                text="Camera Preview",
+                font="Consolas 16",
+                fg=COLOR_WHITE,
+                bg=COLOR_GRAY,
+                bd=0,
+            ).place(x=14, y=30)
+
+            self._win_settings._ts_cam_preview = tk.Label(
+                self._win_settings, image=self._img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
+            )
+            self._win_settings._ts_cam_preview.place(w=42, h=21, x=372 - 42 - 16, y=33)
+
+            self._win_settings._ts_cam_preview.bind(
+                "<Button-1>", lambda _: ts__click("cam_preview")
+            )
+
+            # Initialize gesture control toggle switch.
+            tk.Label(
+                self._win_settings,
+                text="Gesture Control",
+                font="Consolas 16",
+                fg=COLOR_WHITE,
+                bg=COLOR_GRAY,
+                bd=0,
+            ).place(x=14, y=67)
+
+            self._win_settings._ts_gesture_control = tk.Label(
+                self._win_settings, image=self._img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
+            )
+            self._win_settings._ts_gesture_control.place(w=42, h=21, x=372 - 42 - 16, y=70)
+
+            self._win_settings._ts_gesture_control.bind(
+                "<Button-1>", lambda _: ts__click("gesture_control")
+            )
+
             # Initialize hand landmarks toggle switch.
             tk.Label(
                 self._win_settings,
@@ -592,7 +629,7 @@ class App(tk.Tk):
                 fg=COLOR_WHITE,
                 bg=COLOR_GRAY,
                 bd=0,
-            ).place(x=16, y=33)
+            ).place(x=14, y=104)
             self._win_settings._ts_hand_landmarks = tk.Label(
                 self._win_settings,
                 image=self._img_toggle_switch_off,
@@ -600,7 +637,7 @@ class App(tk.Tk):
                 cursor="hand2",
             )
             self._win_settings._ts_hand_landmarks.place(
-                w=42, h=21, x=372 - 42 - 16, y=36
+                w=42, h=21, x=372 - 42 - 16, y=107
             )
             self._win_settings._ts_hand_landmarks.bind(
                 "<Button-1>", lambda _: ts__click("hand_landmarks")
@@ -611,49 +648,6 @@ class App(tk.Tk):
         )
         self._btn_settings.place(w=56, h=56, x=self._width - 56 - 48, y=49)
         self._btn_settings.bind("<Button-1>", lambda _: _btn_settings__click())
-
-        def ts__click(switch):
-            if getattr(self, f"_{switch}"):
-                getattr(self, f"_ts_{switch}").config(image=self._img_toggle_switch_off)
-            else:
-                getattr(self, f"_ts_{switch}").config(image=self._img_toggle_switch_on)
-            setattr(self, f"_{switch}", not getattr(self, f"_{switch}"))
-
-        # Initilize camera preview toggle switch.
-        tk.Label(
-            self,
-            text="Camera Preview",
-            font="Consolas 16",
-            fg=COLOR_WHITE,
-            bg=COLOR_GRAY,
-            bd=0,
-        ).place(x=48, y=543)
-
-        self._ts_cam_preview = tk.Label(
-            self, image=self._img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
-        )
-        self._ts_cam_preview.place(w=42, h=21, x=226, y=546)
-
-        self._ts_cam_preview.bind("<Button-1>", lambda _: ts__click("cam_preview"))
-
-        # Initialize gesture control toggle switch.
-        tk.Label(
-            self,
-            text="Gesture Control",
-            font="Consolas 16",
-            fg=COLOR_WHITE,
-            bg=COLOR_GRAY,
-            bd=0,
-        ).place(x=306, y=543)
-
-        self._ts_gesture_control = tk.Label(
-            self, image=self._img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
-        )
-        self._ts_gesture_control.place(w=42, h=21, x=493, y=546)
-
-        self._ts_gesture_control.bind(
-            "<Button-1>", lambda _: ts__click("gesture_control")
-        )
 
         # Initialize camera preview.
         self._canvas_camera = tk.Canvas(self, bg=COLOR_BLACK, highlightthickness=0)
@@ -668,7 +662,7 @@ class App(tk.Tk):
         self._virtual_cam = cam
         self._cap_src = cap_src
         self._width = 816
-        self._height = 591
+        self._height = 581
         self._cap = Capture(self._cap_src)
         self._hand_detector = HandDetector()
         self._dragging = False
