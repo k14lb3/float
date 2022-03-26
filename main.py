@@ -389,71 +389,86 @@ class App(tk.Tk):
             # Initialize variables.
             self._win_import = ToplevelWindow(self, "Import image", 372, 298)
             self._win_import.btn_names = ["alphabet", "shapes", "imports"]
-            self._win_import.btn_alphabet = None
-            self._win_import.btn_shapes = None
-            self._win_import.btn_imports = None
-            self._win_import.btn_down = None
-            self._win_import.btn_up = None
-
-            self._win_import.imgs_alphabet = []
-            self._win_import.imgs_shapes = []
-            self._win_import.imgs_imports = []
 
             def show_category_imgs(btn_name):
                 # Initiatialize category images.
-                self._win_import.frame_imgs = tk.Frame(self._win_import, bg=COLOR_GRAY)
-                self._win_import.frame_imgs.place(w=340, h=166, x=16, y=59)
+                self._win_import.canvas_imgs = tk.Canvas(
+                    self._win_import,
+                    bg=COLOR_GRAY,
+                    highlightthickness=0,
+                )
+                self._win_import.canvas_imgs.place(w=340, h=166, x=16, y=59)
 
-                btn = getattr(self._win_import, f"_imgs_{btn_name}")
+                self._win_import.canvas_frame_imgs = tk.Frame(
+                    self._win_import.canvas_imgs,
+                    bg=COLOR_GRAY,
+                )
+
+                self._win_import.canvas_frame_imgs.bind(
+                    "<Configure>",
+                    lambda _: self._win_import.canvas_imgs.configure(
+                        scrollregion=self._win_import.canvas_imgs.bbox("all")
+                    ),
+                )
+
+                self._win_import.canvas_imgs.create_window(
+                    0, 0, window=self._win_import.canvas_frame_imgs, anchor="nw"
+                )
+
                 category_imgs = getattr(self, f"_imgs_{btn_name}")
 
                 x, y = 0, 0
                 imgs_count = len(category_imgs)
 
                 if imgs_count > 18:
-                    scrollbar__init()
+                    self._win_import.scrollbar = ttk.Scrollbar(
+                        self._win_import,
+                        orient="vertical",
+                        command=self._win_import.canvas_imgs.yview,
+                    )
+                    self._win_import.scrollbar.place(h=166, x=357, y=59)
+                    self._win_import.canvas_imgs.configure(
+                        yscrollcommand=self._win_import.scrollbar.set
+                    )
+                else:
+                    try:
+                        self._win_import.scrollbar.place_forget()
+                    except:
+                        pass
 
                 for i in range(imgs_count):
                     thumbnail, path = category_imgs[i]
-                    btn.append(
-                        tk.Label(
-                            self._win_import.frame_imgs,
-                            image=thumbnail,
-                            bg=COLOR_GRAY,
-                            cursor="hand2",
-                        )
+                    btn = tk.Label(
+                        self._win_import.canvas_frame_imgs,
+                        image=thumbnail,
+                        bg=COLOR_GRAY,
+                        cursor="hand2",
+                        width=46,
+                        height=46,
                     )
-                    btn[i].place(w=50, h=50, x=x, y=y)
 
-                    btn[i].bind(
+                    btn.grid(
+                        row=x,
+                        column=y,
+                        padx=(0 if y % 6 == 0 else 4, 0 if (y + 1) % 6 == 0 else 4),
+                        pady=(
+                            0 if x == 0 else 4,
+                            0 if i >= imgs_count - (imgs_count % 6) else 4,
+                        ),
+                    )
+
+                    btn.bind(
                         "<Button-1>",
                         lambda _, path=path: self._float_images.append(
                             FloatImage(path, (0, 0))
                         ),
                     )
 
-                    x += 58
+                    y += 1
 
                     if (i + 1) % 6 == 0:
-                        x = 0
-                        y += 58
-
-            def scrollbar__init():
-                self._win_import.frame_canvas = tk.Canvas(self._win_import.frame_imgs)
-
-                self._win_import.scrollbar = ttk.Scrollbar(
-                    self._win_import, orient="vertical"
-                )
-                self._win_import.scrollbar.place(h=166, x=355, y=59)
-
-            def frame_imgs__init():
-                self._win_import.canvas_imgs = tk.Canvas(
-                    self._win_import, bg=COLOR_GRAY
-                )
-                self._win_import.frame_imgs = tk.Frame(self._win_import.canvas_imgs)
-                self._win_import.canvas_imgs.create_window(
-                    (0, 0), window=self._win_import.frame_imgs
-                )
+                        x += 1
+                        y = 0
 
             def btn_category__enter(coord):
                 x, y = coord
@@ -481,8 +496,6 @@ class App(tk.Tk):
                 self._win_import.cursor.configure(bg=COLOR_GRAY)
 
                 setattr(self._win_import, f"_imgs_{btn_name}", [])
-
-                self._win_import.frame_imgs.destroy()
 
                 # Show images from the given category.
                 show_category_imgs(btn_name)
@@ -546,8 +559,6 @@ class App(tk.Tk):
             )
             self._win_import.label_category.place(x=14, y=27)
 
-            frame_imgs__init()
-
             tk.Frame(self._win_import, bg=COLOR_BLACK).place(w=340, h=3, x=16, y=235)
 
             # Initialize cursor.
@@ -594,7 +605,10 @@ class App(tk.Tk):
             ).place(x=14, y=30)
 
             self._win_settings._ts_cam_preview = tk.Label(
-                self._win_settings, image=self._img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
+                self._win_settings,
+                image=self._img_toggle_switch_on,
+                bg=COLOR_GRAY,
+                cursor="hand2",
             )
             self._win_settings._ts_cam_preview.place(w=42, h=21, x=372 - 42 - 16, y=33)
 
@@ -613,9 +627,14 @@ class App(tk.Tk):
             ).place(x=14, y=67)
 
             self._win_settings._ts_gesture_control = tk.Label(
-                self._win_settings, image=self._img_toggle_switch_on, bg=COLOR_GRAY, cursor="hand2"
+                self._win_settings,
+                image=self._img_toggle_switch_on,
+                bg=COLOR_GRAY,
+                cursor="hand2",
             )
-            self._win_settings._ts_gesture_control.place(w=42, h=21, x=372 - 42 - 16, y=70)
+            self._win_settings._ts_gesture_control.place(
+                w=42, h=21, x=372 - 42 - 16, y=70
+            )
 
             self._win_settings._ts_gesture_control.bind(
                 "<Button-1>", lambda _: ts__click("gesture_control")
