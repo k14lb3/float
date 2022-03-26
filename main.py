@@ -1,14 +1,15 @@
 import os
-import math
 from ctypes import windll
 import cv2 as cv
 import numpy as np
-import mediapipe as mp
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 import pyvirtualcam
 from constants import *
+from hand_detector import HandDetector
+from capture import Capture
+from float_image import FloatImage
 
 
 class App(tk.Tk):
@@ -649,12 +650,14 @@ class App(tk.Tk):
                 bg=COLOR_GRAY,
                 bd=0,
             ).place(x=14, y=104)
+
             self._win_settings._ts_hand_landmarks = tk.Label(
                 self._win_settings,
                 image=self._img_toggle_switch_off,
                 bg=COLOR_GRAY,
                 cursor="hand2",
             )
+
             self._win_settings._ts_hand_landmarks.place(
                 w=42, h=21, x=372 - 42 - 16, y=107
             )
@@ -854,217 +857,6 @@ class ToplevelWindow(tk.Toplevel):
         self._width = width
         self._height = height
         self._img_close = self._parent._img_close
-
-
-class Capture:
-    def __init__(self, cap_src=0):
-        self._cap = cv.VideoCapture(cap_src)
-
-    def get_video_capture_frame(self):
-        if self._cap.isOpened():
-            success, frame = self._cap.read()
-
-            if success:
-                return (success, frame)
-
-    def __del__(self):
-        if self._cap.isOpened():
-            self._cap.release()
-
-
-class HandDetector:
-    def __init__(
-        self,
-        static_image_mode=False,
-        max_num_hands=2,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
-    ):
-        """Initializes hand detector.
-
-        Arguments:
-            static_image_mode: Whether to treat the input images as a batch of static
-            and possibly unrelated images, or a video stream.
-            max_num_hands: Maximum number of hands to detect.
-            min_detection_confidence: Minimum confidence value ([0.0, 1.0]) for hand
-            detection to be considered successful.
-            min_tracking_confidence: Minimum confidence value ([0.0, 1.0]) for the
-            hand landmarks to be considered tracked successfully.
-        """
-        self._static_image_mode = static_image_mode
-        self._max_num_hands = max_num_hands
-        self._min_detection_confidence = min_detection_confidence
-        self._min_tracking_confidence = min_tracking_confidence
-
-        self._mp_hands = mp.solutions.hands
-        self._mp_drawing = mp.solutions.drawing_utils
-        self._hands = self._mp_hands.Hands(
-            self._static_image_mode,
-            self._max_num_hands,
-            self._min_detection_confidence,
-            self._min_tracking_confidence,
-        )
-        self._hands_list = []
-
-    def find_hands(self, img, draw=False):
-        """Finds hands in an image.
-
-        Arguments:
-            frame: Image to detect hands in.
-            draw: Draw the output on the image.
-
-        Return:
-            Image.
-        """
-
-        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-
-        # Prevents copying of image; increases process performance.
-        img.flags.writeable = False
-
-        results = self._hands.process(img)
-
-        img.flags.writeable = True
-
-        img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-
-        h, w = img.shape[:2]
-
-        if results.multi_hand_landmarks:
-            for handedness, hand_landmarks in zip(
-                results.multi_handedness, results.multi_hand_landmarks
-            ):
-                hand = []
-                hand.append(handedness.classification[0].label)
-                hand.append([])
-                for landmark in list(hand_landmarks.landmark):
-                    hand[1].append(
-                        (
-                            int(landmark.x * w),
-                            int(landmark.y * h),
-                        )
-                    )
-
-                self._hands_list.append(hand)
-
-                if draw:
-                    self._mp_drawing.draw_landmarks(
-                        img,
-                        hand_landmarks,
-                        self._mp_hands.HAND_CONNECTIONS,
-                    )
-
-        return img
-
-    def get_distance(self, p1, p2):
-        x1, y1 = p1
-        x2, y2 = p2
-        dist = math.hypot(x2 - x1, y2 - y1)
-        return dist
-
-    def reset_hands_list(self):
-        self._hands_list = []
-
-
-class FloatImage:
-    def __init__(self, path, pos):
-        """Initializes an interactable image using hand gestures.
-
-        Arguments:
-            path: File path of the image.
-            pos: Position of the image.
-        """
-
-        self._path = path
-        self._pos = pos
-
-        # Load the image with alpha channel if the image format
-        # is png, otherwise load the image by default.
-        if "png" in os.path.splitext(self._path)[1]:
-            self._img = cv.imread(self._path, cv.IMREAD_UNCHANGED)
-            self._png = True if self._img.shape[2] == 4 else False
-        else:
-            self._img = cv.imread(self._path)
-            self._png = False
-
-        self._img = self.img_resize(self._img, width=200)
-
-        self._size = self._img.shape[:2]
-
-    def img_resize(self, img, width=None, height=None, interpolation=cv.INTER_AREA):
-        """Initializes an interactable image using hand gestures.
-
-        Arguments:
-            img: Image.
-            width: Preferred width.
-            height: Preferred height.
-
-        Return:
-            Resized image, if no width and height given then it returns
-            the given image.
-        """
-        # Gets the size of the image.
-        h, w = img.shape[:2]
-
-        if width is None and height is None:
-            return img
-
-        dim = None
-
-        # Finds the ratio and use it to get the desired dimension.
-        if width is None:
-            r = height / float(h)
-            dim = (int(w * r), height)
-        else:
-            r = width / float(w)
-            dim = (width, int(h * r))
-
-        return cv.resize(img, dim, interpolation=interpolation)
-
-    def drag(self, cursor):
-        cursor_x, cursor_y = cursor
-        x, y = self.get_pos_x(), self.get_pos_y()
-        w, h = self.get_width(), self.get_height()
-        if x < cursor_x < x + w and y < cursor_y < y + h:
-            self.set_pos_x(cursor_x - w // 2)
-            self.set_pos_y(cursor_y - h // 2)
-
-    def delete(self, float_images, cursor):
-        cursor_x, cursor_y = cursor
-        x, y = self.get_pos_x(), self.get_pos_y()
-        w, h = self.get_width(), self.get_height()
-        if x < cursor_x < x + w and y < cursor_y < y + h:
-            float_images.pop()
-
-    def is_png(self):
-        return self._png
-
-    def get_img(self):
-        return self._img
-
-    def get_width(self):
-        return self._size[1]
-
-    def get_height(self):
-        return self._size[0]
-
-    def get_pos_x(self):
-        return self._pos[0]
-
-    def get_pos_y(self):
-        return self._pos[1]
-
-    def set_width(self, w):
-        self._size = (self._size[0], w)
-
-    def set_height(self, h):
-        self._size = (h, self._size[1])
-
-    def set_pos_x(self, x):
-        self._pos = (x, self._pos[1])
-
-    def set_pos_y(self, y):
-        self._pos = (self._pos[0], y)
 
 
 def main():
