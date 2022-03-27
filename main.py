@@ -595,6 +595,12 @@ class App(tk.Tk):
                     )
                 setattr(self, f"_{switch}", not getattr(self, f"_{switch}"))
 
+            def ts__set_switch(switch):
+                if getattr(self, f"_{switch}"):
+                    return self._img_toggle_switch_on
+
+                return self._img_toggle_switch_off
+
             # Initilize camera preview toggle switch.
             tk.Label(
                 self._win_settings,
@@ -607,7 +613,7 @@ class App(tk.Tk):
 
             self._win_settings._ts_cam_preview = tk.Label(
                 self._win_settings,
-                image=self._img_toggle_switch_on,
+                image=ts__set_switch("cam_preview"),
                 bg=COLOR_GRAY,
                 cursor="hand2",
             )
@@ -629,7 +635,7 @@ class App(tk.Tk):
 
             self._win_settings._ts_gesture_control = tk.Label(
                 self._win_settings,
-                image=self._img_toggle_switch_on,
+                image=ts__set_switch("gesture_control"),
                 bg=COLOR_GRAY,
                 cursor="hand2",
             )
@@ -653,7 +659,7 @@ class App(tk.Tk):
 
             self._win_settings._ts_hand_landmarks = tk.Label(
                 self._win_settings,
-                image=self._img_toggle_switch_off,
+                image=ts__set_switch("hand_landmarks"),
                 bg=COLOR_GRAY,
                 cursor="hand2",
             )
