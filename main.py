@@ -3,7 +3,7 @@ from ctypes import windll
 import cv2 as cv
 import numpy as np
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 import pyvirtualcam
 from constants import *
@@ -478,6 +478,23 @@ class App(tk.Tk):
                 self._win_import.cursor.configure(bg=COLOR_BLUE)
 
             def btn_category__select(btn_name):
+                if btn_name == "imports":
+                    path = filedialog.askopenfile(
+                        parent=self._win_import,
+                        filetypes=[
+                            ("All Files", "*.*"),
+                            ("PNG", "*.png"),
+                            ("JPEG", ["*.jpg", "*.jpeg"]),
+                        ],
+                    )
+
+                    if os.path.splitext(path.name)[1].lower() not in [".png", ".jpg", ".jpeg"]:
+                        return
+                        
+                    self._float_images.append(FloatImage(path.name, (0, 0)))
+
+                    return
+
                 self._win_import.label_category.configure(text=btn_name.capitalize())
 
                 # Reset category images and cursor to default.
