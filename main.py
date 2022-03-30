@@ -488,9 +488,13 @@ class App(tk.Tk):
                         ],
                     )
 
-                    if os.path.splitext(path.name)[1].lower() not in [".png", ".jpg", ".jpeg"]:
+                    if os.path.splitext(path.name)[1].lower() not in [
+                        ".png",
+                        ".jpg",
+                        ".jpeg",
+                    ]:
                         return
-                        
+
                     self._float_images.append(FloatImage(path.name, (0, 0)))
 
                     return
@@ -774,7 +778,7 @@ class App(tk.Tk):
         self._imgs_alphabet = []
         self._imgs_imports = []
 
-        for category in ["shapes", "alphabet", "imports"]:
+        for category in ["shapes", "alphabet"]:
             imgs_path = PATH_IMAGES + f"{category}/"
             files = os.listdir(imgs_path)
             if len(files) != 0:
@@ -882,8 +886,14 @@ class ToplevelWindow(tk.Toplevel):
         self._img_close = self._parent._img_close
 
 
+def getWebcamProperties():
+    cap = Capture(0)
+    return cap.get_width(), cap.get_height(), cap.get_fps()
+
+
 def main():
-    with pyvirtualcam.Camera(width=1280, height=720, fps=60) as cam:
+    width, height, fps = getWebcamProperties()
+    with pyvirtualcam.Camera(width=width, height=height, fps=fps) as cam:
         app = App(cam)
         app.mainloop()
 
