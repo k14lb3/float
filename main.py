@@ -1,6 +1,7 @@
 import os
 from ctypes import windll
 import cv2 as cv
+from cv2 import VideoCapture
 import numpy as np
 import tkinter as tk
 from tkinter import ttk, filedialog
@@ -75,20 +76,22 @@ class App(tk.Tk):
         )
 
     def _update_capture(self):
-        if not self.is_dragging():
 
-            def frame_resize(img):
-                # Resizes the image by maintaining the aspect ratio by determining what is
-                # the percentage of the height relative to the original height in pixels.
-                # And then multiplying the original the original width to that percentage.
-                base_height = CAPTURE_HEIGHT
-                height_percent = base_height / float(img.size[1])
-                width = int((float(img.size[0]) * float(height_percent)))
-                return img.resize((width, base_height), Image.ANTIALIAS)
+        success, frame = self._cap().read()
 
-            success, frame = self._cap.get_video_capture_frame()
+        ms = 10
 
-            if success:
+        if success:
+            if not self.is_dragging():
+
+                def frame_resize(img):
+                    # Resizes the image by maintaining the aspect ratio by determining what is
+                    # the percentage of the height relative to the original height in pixels.
+                    # And then multiplying the original the original width to that percentage.
+                    base_height = CAPTURE_HEIGHT
+                    height_percent = base_height / float(img.size[1])
+                    width = int((float(img.size[0]) * float(height_percent)))
+                    return img.resize((width, base_height), Image.ANTIALIAS)
 
                 self._hand_detector.reset_hands_list()
 
@@ -143,8 +146,22 @@ class App(tk.Tk):
                         font="Consolas 24",
                         anchor=tk.NW,
                     )
+        else:
+            self._canvas_camera.delete(tk.ALL)
+            self._canvas_camera.create_text(
+                190,
+                184,
+                text="Camera Not Detected",
+                fill=COLOR_WHITE,
+                font="Consolas 24",
+                anchor=tk.NW,
+            )
+            
+            self._cap = Capture()
 
-        self.after(10, self._update_capture)
+            ms = 1000
+
+        self.after(ms, self._update_capture)
 
     def _check_gestures(self):
         for hand in self._hand_detector._hands_list:
@@ -888,6 +905,7 @@ class ToplevelWindow(tk.Toplevel):
 
 def getWebcamProperties():
     cap = Capture(0)
+
     return cap.get_width(), cap.get_height(), cap.get_fps()
 
 
