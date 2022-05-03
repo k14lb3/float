@@ -8,12 +8,8 @@ class Capture:
         if self._cap.isOpened():
             self._cap.release()
 
-    def get_video_capture_frame(self):
-        if self._cap.isOpened():
-            success, frame = self._cap.read()
-
-            if success:
-                return (success, frame)
+    def __call__(self):
+        return self._cap
 
     def get_width(self):
         return int(self._cap.get(cv.CAP_PROP_FRAME_WIDTH))
