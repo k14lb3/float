@@ -77,7 +77,7 @@ class App(tk.Tk):
 
     def _update_capture(self):
 
-        success, frame = self._cap().read()
+        success, frame = self._cap.read()
 
         ms = 10
 
@@ -156,7 +156,7 @@ class App(tk.Tk):
                 font="Consolas 24",
                 anchor=tk.NW,
             )
-            
+
             self._cap = Capture()
 
             ms = 1000
@@ -454,6 +454,12 @@ class App(tk.Tk):
                     except:
                         pass
 
+                def btn_img__click(path):
+                    success = self._cap.get_success()
+
+                    if success:
+                        self._float_images.append(FloatImage(path, (0, 0)))
+
                 for i in range(imgs_count):
                     thumbnail, path = category_imgs[i]
                     btn = tk.Label(
@@ -477,9 +483,7 @@ class App(tk.Tk):
 
                     btn.bind(
                         "<Button-1>",
-                        lambda _, path=path: self._float_images.append(
-                            FloatImage(path, (0, 0))
-                        ),
+                        lambda _, path=path: btn_img__click(path),
                     )
 
                     y += 1
