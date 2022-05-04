@@ -1,7 +1,6 @@
 import os
 from ctypes import windll
 import cv2 as cv
-from cv2 import VideoCapture
 import numpy as np
 import tkinter as tk
 from tkinter import ttk, filedialog
@@ -10,6 +9,7 @@ import pyvirtualcam
 from constants import *
 from hand_detector import HandDetector
 from capture import Capture
+from gesture_classfier import GestureClassifier
 from float_image import FloatImage
 
 
@@ -164,21 +164,24 @@ class App(tk.Tk):
         self.after(ms, self._update_capture)
 
     def _check_gestures(self):
-        for hand in self._hand_detector._hands_list:
-            if self._GESTURES[GESTURE_DRAG](hand):
+        for i in range(len(self._hand_detector._hands_list)):
+
+            gesture = self._gesture_classifier(self._hand_detector._pre_processed_hands_list[i])
+
+            if gesture == GESTURE_DRAG:
                 # Make index finger the cursor.
-                cursor = hand[1][INDEX_FINGER_TIP]
+                cursor = self._hand_detector._hands_list[i][1][INDEX_FINGER_TIP]
                 for float_image in self._float_images:
                     float_image.drag(cursor)
+                
+                continue
+            
+            if len(self._hand_detector._hands_list) > 1:
+                if gesture == GESTURE_DELETE:
+                    cursor = self._hand_detector._hands_list[(i + 1) % 2][1][INDEX_FINGER_TIP]
 
-        if len(self._hand_detector._hands_list) > 1:
-            for i in range(2):
-                if self._GESTURES[GESTURE_DELETE](self._hand_detector._hands_list[i]):
-                    hand = self._hand_detector._hands_list[(i + 1) % 2]
-                    if hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]:
-                        cursor = hand[1][INDEX_FINGER_TIP]
-                        for float_image in self._float_images:
-                            float_image.delete(self._float_images, cursor)
+                    for float_image in self._float_images:
+                        float_image.delete(self._float_images, cursor)
 
     def _img_draw(self, frame, float_image, flip=False):
         def overlay_transparent(bg, fg, pos=(0, 0)):
@@ -735,36 +738,12 @@ class App(tk.Tk):
         self._height = 581
         self._cap = Capture(self._cap_src)
         self._hand_detector = HandDetector()
+        self._gesture_classifier = GestureClassifier()
         self._dragging = False
         self._cam_preview = True
         self._gesture_control = True
         self._hand_landmarks = False
         self._float_images = []
-        self._GESTURES = {
-            GESTURE_DRAG: lambda hand: self._hand_detector.get_distance(
-                hand[1][INDEX_FINGER_TIP],
-                hand[1][MIDDLE_FINGER_TIP],
-            )
-            < 40
-            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1])
-            and (hand[1][MIDDLE_FINGER_TIP][1] < hand[1][MIDDLE_FINGER_DIP][1]),
-            GESTURE_DELETE: lambda hand: self._hand_detector.get_distance(
-                hand[1][MIDDLE_FINGER_TIP],
-                hand[1][THUMB_TIP],
-            )
-            < 30
-            and self._hand_detector.get_distance(
-                hand[1][RING_FINGER_TIP],
-                hand[1][THUMB_TIP],
-            )
-            < 30
-            and self._hand_detector.get_distance(
-                hand[1][PINKY_TIP],
-                hand[1][THUMB_TIP],
-            )
-            < 30
-            and (hand[1][INDEX_FINGER_TIP][1] < hand[1][INDEX_FINGER_DIP][1]),
-        }
         self._img_minimize = tk.PhotoImage(file=PATH_ICONS + "minimize.png")
         self._img_close = tk.PhotoImage(file=PATH_ICONS + "close.png")
         self._img_cog = tk.PhotoImage(file=PATH_ICONS + "cog.png")

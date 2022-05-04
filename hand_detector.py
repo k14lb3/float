@@ -1,6 +1,8 @@
 import mediapipe as mp
 from math import hypot
 import cv2 as cv
+import copy
+import itertools
 
 
 class HandDetector:
@@ -36,6 +38,7 @@ class HandDetector:
             self._min_tracking_confidence,
         )
         self._hands_list = []
+        self._pre_processed_hands_list = []
 
     def find_hands(self, img, draw=False):
         """Finds hands in an image.
@@ -78,6 +81,10 @@ class HandDetector:
 
                 self._hands_list.append(hand)
 
+                self._pre_processed_hands_list.append(
+                    self._pre_process_landmarks((h, w), hand_landmarks)
+                )
+
                 if draw:
                     self._mp_drawing.draw_landmarks(
                         img,
@@ -87,6 +94,42 @@ class HandDetector:
 
         return img
 
+    def _pre_process_landmarks(self, dim, hand_landmarks):
+        h, w = dim[:2]
+        
+        landmark_list = []
+
+        # Keypoint
+        for _, landmark in enumerate(hand_landmarks.landmark):
+            landmark_x = min(int(landmark.x * w), w - 1)
+            landmark_y = min(int(landmark.y * h), h - 1)
+            # landmark_z = landmark.z
+
+            landmark_list.append([landmark_x, landmark_y])
+
+        # Convert to relative coordinates
+        b_x, b_y = 0, 0
+        
+        for i, landmark_point in enumerate(landmark_list):
+            if i == 0:
+                b_x, b_y = landmark_point[0], landmark_point[1]
+
+            landmark_list[i][0] = landmark_list[i][0] - b_x
+            landmark_list[i][1] = landmark_list[i][1] - b_y
+
+        # Convert to a one-dimensional list/
+        landmark_list = list(itertools.chain.from_iterable(landmark_list))
+
+        # Normalization
+        max_value = max(list(map(abs, landmark_list)))
+
+        def normalize_(n):
+            return n / max_value
+
+        landmark_list = list(map(normalize_, landmark_list))
+        
+        return landmark_list
+
     def get_distance(self, p1, p2):
         x1, y1 = p1
         x2, y2 = p2
@@ -95,3 +138,4 @@ class HandDetector:
 
     def reset_hands_list(self):
         self._hands_list = []
+        self._pre_processed_hands_list = []
