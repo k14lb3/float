@@ -1,7 +1,6 @@
 import mediapipe as mp
 from math import hypot
 import cv2 as cv
-import copy
 import itertools
 
 
@@ -127,8 +126,14 @@ class HandDetector:
             return n / max_value
 
         landmark_list = list(map(normalize_, landmark_list))
-        
+
         return landmark_list
+
+    def get_midpoint(self, p1, p2):
+        x1, y1 = p1
+        x2, y2 = p2
+        midpoint = (round((x1 + x2) / 2), round((y1 + y2) / 2))
+        return midpoint
 
     def get_distance(self, p1, p2):
         x1, y1 = p1
