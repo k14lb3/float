@@ -333,7 +333,7 @@ class App(tk.Tk):
         def win_drag__init(e):
             # Get the cursor position relative to the window.
             self._cursor_rel_x, self._cursor_rel_y = e.x, e.y
-            self._dragging = True
+            self._win_dragging = True
 
         def win_drag(e):
             self.geometry(
@@ -341,7 +341,7 @@ class App(tk.Tk):
             )
 
         def win_drag__release():
-            self._dragging = False
+            self._win_dragging = False
 
         def win_minimize():
             self.withdraw()
@@ -739,7 +739,7 @@ class App(tk.Tk):
         self._cap = Capture(self._cap_src)
         self._hand_detector = HandDetector()
         self._gesture_classifier = GestureClassifier()
-        self._dragging = False
+        self._win_dragging = False
         self._cam_preview = True
         self._gesture_control = True
         self._hand_landmarks = False
@@ -790,10 +790,10 @@ class App(tk.Tk):
                     getattr(self, f"_imgs_{category}").append([pi_img, filepath])
 
     def is_dragging(self):
-        return self._dragging
+        return self._win_dragging
 
     def set_dragging(self, flag):
-        self._dragging = flag
+        self._win_dragging = flag
 
 
 class ToplevelWindow(tk.Toplevel):
