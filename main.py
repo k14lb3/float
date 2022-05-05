@@ -164,21 +164,45 @@ class App(tk.Tk):
         self.after(ms, self._update_capture)
 
     def _check_gestures(self):
-        for i in range(len(self._hand_detector._hands_list)):
+        for i, hand in enumerate(self._hand_detector._hands_list):
 
-            gesture = self._gesture_classifier(self._hand_detector._pre_processed_hands_list[i])
+            gesture = self._gesture_classifier(
+                self._hand_detector._pre_processed_hands_list[i]
+            )
 
             if gesture == GESTURE_DRAG:
                 # Make index finger the cursor.
-                cursor = self._hand_detector._hands_list[i][1][INDEX_FINGER_TIP]
-                for float_image in self._float_images:
-                    float_image.drag(cursor)
-                
+                cursor = self._hand_detector.get_midpoint(
+                    hand[1][MIDDLE_FINGER_TIP], hand[1][INDEX_FINGER_TIP]
+                )
+
+                # Check if a float image is currenly being dragged.
+
+                foo = [
+                    float_image
+                    for float_image in self._float_images
+                    if float_image._dragging == hand[0]
+                ]
+
+                # If true, get the float image and drag it
+                if foo:
+                    foo[0].drag(hand[0], cursor)
+
+                # Otherwise pick an image to be dragged
+                else:
+                    for float_image in self._float_images:
+                        succ = float_image.drag(hand[0], cursor)
+
+                        if succ:
+                            break
+
                 continue
-            
+
             if len(self._hand_detector._hands_list) > 1:
                 if gesture == GESTURE_DELETE:
-                    cursor = self._hand_detector._hands_list[(i + 1) % 2][1][INDEX_FINGER_TIP]
+                    cursor = self._hand_detector._hands_list[(i + 1) % 2][1][
+                        INDEX_FINGER_TIP
+                    ]
 
                     for float_image in self._float_images:
                         float_image.delete(self._float_images, cursor)

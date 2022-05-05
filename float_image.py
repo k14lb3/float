@@ -12,6 +12,7 @@ class FloatImage:
 
         self._path = path
         self._pos = pos
+        self._dragging = None
 
         # Load the image with alpha channel if the image format
         # is png, otherwise load the image by default.
@@ -56,13 +57,21 @@ class FloatImage:
 
         return cv.resize(img, dim, interpolation=interpolation)
 
-    def drag(self, cursor):
+    def drag(self, handedness, cursor):
         cursor_x, cursor_y = cursor
         x, y = self.get_pos_x(), self.get_pos_y()
         w, h = self.get_width(), self.get_height()
+        
+        self._dragging = None
+        
         if x < cursor_x < x + w and y < cursor_y < y + h:
+            self._dragging = handedness
             self.set_pos_x(cursor_x - w // 2)
             self.set_pos_y(cursor_y - h // 2)
+            
+            return True
+        
+        return False
 
     def delete(self, float_images, cursor):
         cursor_x, cursor_y = cursor
@@ -76,6 +85,7 @@ class FloatImage:
 
     def get_img(self):
         return self._img
+        
 
     def get_width(self):
         return self._size[1]
