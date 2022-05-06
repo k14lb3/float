@@ -1,5 +1,6 @@
 import os
 from ctypes import windll
+from re import T
 import cv2 as cv
 import numpy as np
 import tkinter as tk
@@ -175,23 +176,20 @@ class App(tk.Tk):
                 cursor = self._hand_detector.get_midpoint(
                     hand[1][MIDDLE_FINGER_TIP], hand[1][INDEX_FINGER_TIP]
                 )
-
+                
                 # Check if a float image is currenly being dragged.
 
-                foo = [
-                    float_image
-                    for float_image in self._float_images
-                    if float_image._dragging == hand[0]
-                ]
+                dragging_float_image = next((float_image for float_image in self._float_images if float_image._dragging == hand[0]), None)
+                
 
                 # If true, get the float image and drag it
-                if foo:
-                    foo[0].drag(hand[0], cursor)
+                if dragging_float_image:
+                    dragging_float_image.drag(cursor)
 
                 # Otherwise pick an image to be dragged
                 else:
                     for float_image in self._float_images:
-                        succ = float_image.drag(hand[0], cursor)
+                        succ = float_image.drag_start(hand[0], cursor)
 
                         if succ:
                             break
@@ -203,9 +201,14 @@ class App(tk.Tk):
                     cursor = self._hand_detector._hands_list[(i + 1) % 2][1][
                         INDEX_FINGER_TIP
                     ]
+                    
+                    for i in range(len(self._float_images)):
+                        succ = self._float_images[i].delete(cursor)
 
-                    for float_image in self._float_images:
-                        float_image.delete(self._float_images, cursor)
+                        if succ:
+                            self._float_images.pop(i)
+                            
+                            
 
     def _img_draw(self, frame, float_image, flip=False):
         def overlay_transparent(bg, fg, pos=(0, 0)):

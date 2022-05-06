@@ -56,36 +56,52 @@ class FloatImage:
             dim = (width, int(h * r))
 
         return cv.resize(img, dim, interpolation=interpolation)
-
-    def drag(self, handedness, cursor):
+    
+    def drag_start(self, handedness, cursor):
         cursor_x, cursor_y = cursor
         x, y = self.get_pos_x(), self.get_pos_y()
         w, h = self.get_width(), self.get_height()
         
-        self._dragging = None
         
         if x < cursor_x < x + w and y < cursor_y < y + h:
             self._dragging = handedness
-            self.set_pos_x(cursor_x - w // 2)
-            self.set_pos_y(cursor_y - h // 2)
+            self._drag_init = (cursor_x - x, cursor_y - y)
             
             return True
         
         return False
+        
 
-    def delete(self, float_images, cursor):
+    def drag(self, cursor):
+        cursor_x, cursor_y = cursor
+        drag_init_x, drag_init_y = self._drag_init
+        x, y = self.get_pos_x(), self.get_pos_y()
+        w, h = self.get_width(), self.get_height()
+        
+        if x < cursor_x < x + w and y < cursor_y < y + h:
+            self.set_pos_x(cursor_x - drag_init_x)
+            self.set_pos_y(cursor_y - drag_init_y)
+            
+            return
+        
+        self._dragging = None
+
+
+    def delete(self, cursor):
         cursor_x, cursor_y = cursor
         x, y = self.get_pos_x(), self.get_pos_y()
         w, h = self.get_width(), self.get_height()
         if x < cursor_x < x + w and y < cursor_y < y + h:
-            float_images.pop()
+            return True
+
+        return False
 
     def is_png(self):
         return self._png
 
     def get_img(self):
         return self._img
-        
+
 
     def get_width(self):
         return self._size[1]
