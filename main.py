@@ -1,12 +1,12 @@
 import os
 from ctypes import windll
-from re import T
 import cv2 as cv
 import numpy as np
 import tkinter as tk
 from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 import pyvirtualcam
+from regex import E
 from constants import *
 from hand_detector import HandDetector
 from capture import Capture
@@ -96,7 +96,9 @@ class App(tk.Tk):
 
                 self._hand_detector.reset_hands_list()
 
-                frame_raw = self._hand_detector.find_hands(frame, self._hand_landmarks)
+                frame_raw = self._hand_detector.find_hands(
+                    cv.flip(frame, 1), self._hand_landmarks
+                )
 
                 frame = frame_raw.copy()
 
@@ -108,20 +110,20 @@ class App(tk.Tk):
 
                 if self._float_images:
                     if self._gesture_control:
-                        self._check_gestures()
-
-                # Send frame to the virtual camera.
-                self._virtual_cam.send(frame)
-
-                self._virtual_cam.sleep_until_next_frame()
+                        self._check_gestures(frame)
 
                 if self._cam_preview:
+                    if self._virtual_cam.device:
+                        # Send frame to the virtual camera.
+                        self._virtual_cam.send(frame)
+
+                        self._virtual_cam.sleep_until_next_frame()
                     if self._float_images:
                         for float_image in self._float_images:
-                            frame = self._img_draw(frame_raw, float_image, flip=True)
+                            frame = self._img_draw(frame_raw, float_image)
                         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
-                    frame = cv.flip(frame, 1)
+                    # frame = cv.flip(frame, 1)
 
                     frame_arr = Image.fromarray(frame)
                     frame_arr = frame_resize(frame_arr)
@@ -164,9 +166,9 @@ class App(tk.Tk):
 
         self.after(ms, self._update_capture)
 
-    def _check_gestures(self):
+    def _check_gestures(self, frame):
+        # drag doesnt work if two hands
         for i, hand in enumerate(self._hand_detector._hands_list):
-
             gesture = self._gesture_classifier(
                 self._hand_detector._pre_processed_hands_list[i]
             )
@@ -176,15 +178,58 @@ class App(tk.Tk):
                 cursor = self._hand_detector.get_midpoint(
                     hand[1][MIDDLE_FINGER_TIP], hand[1][INDEX_FINGER_TIP]
                 )
-                
+
                 # Check if a float image is currenly being dragged.
 
-                dragging_float_image = next((float_image for float_image in self._float_images if float_image._dragging == hand[0]), None)
-                
+                dragging_float_image = next(
+                    (
+                        float_image
+                        for float_image in self._float_images
+                        if float_image._dragging == hand[0]
+                    ),
+                    None,
+                )
 
-                # If true, get the float image and drag it
                 if dragging_float_image:
-                    dragging_float_image.drag(cursor)
+
+                    if len(self._hand_detector._hands_list) > 1:
+                        if dragging_float_image._resizing:
+
+                            cursor = self._hand_detector.get_midpoint(
+                                hand[1][MIDDLE_FINGER_TIP], hand[1][INDEX_FINGER_TIP]
+                            )
+
+                            other_cursor = self._hand_detector._hands_list[(i + 1) % 2][
+                                1
+                            ][INDEX_FINGER_TIP]
+
+                            dragging_float_image.resize(
+                                frame,
+                                cursor, 
+                                other_cursor,
+                                int(self._hand_detector.get_distance(cursor, other_cursor)),
+                            )
+
+                            continue
+
+                    dragging_float_image.drag(frame, cursor)
+
+                    if len(self._hand_detector._hands_list) > 1:
+
+                        other_hand_gesture = self._gesture_classifier(
+                            self._hand_detector._pre_processed_hands_list[(i + 1) % 2]
+                        )
+
+                        if other_hand_gesture == GESTURE_POINTER:
+                            cursor = self._hand_detector.get_midpoint(
+                                hand[1][MIDDLE_FINGER_TIP], hand[1][INDEX_FINGER_TIP]
+                            )
+
+                            other_cursor = self._hand_detector._hands_list[(i + 1) % 2][
+                                1
+                            ][INDEX_FINGER_TIP]
+
+                            dragging_float_image.resize_start(cursor, other_cursor)
 
                 # Otherwise pick an image to be dragged
                 else:
@@ -198,17 +243,26 @@ class App(tk.Tk):
 
             if len(self._hand_detector._hands_list) > 1:
                 if gesture == GESTURE_DELETE:
-                    cursor = self._hand_detector._hands_list[(i + 1) % 2][1][
-                        INDEX_FINGER_TIP
-                    ]
-                    
-                    for i in range(len(self._float_images)):
-                        succ = self._float_images[i].delete(cursor)
+                    other_hand = self._hand_detector._hands_list[(i + 1) % 2]
 
-                        if succ:
-                            self._float_images.pop(i)
-                            
-                            
+                    other_hand_gesture = self._gesture_classifier(
+                        self._hand_detector._pre_processed_hands_list[(i + 1) % 2]
+                    )
+
+                    if other_hand_gesture == GESTURE_POINTER:
+                        cursor = other_hand[1][INDEX_FINGER_TIP]
+
+                        for i in range(len(self._float_images)):
+                            succ = self._float_images[i].delete(cursor)
+
+                            if succ:
+                                self._float_images.pop(i)
+                                break
+
+            for float_image in self._float_images:
+                if float_image._dragging == hand[0]:
+                    float_image._dragging = None
+                    float_image._resizing = None
 
     def _img_draw(self, frame, float_image, flip=False):
         def overlay_transparent(bg, fg, pos=(0, 0)):
@@ -272,76 +326,21 @@ class App(tk.Tk):
 
             return img
 
-        pos = []
-        frame_h, frame_w = frame.shape[:2]
-        w, h = float_image.get_width(), float_image.get_height()
         x, y = float_image.get_pos_x(), float_image.get_pos_y()
 
         if float_image.is_png():
-            # Top Left
-            if x <= 0 and y <= 0:
-                pos = (0, 0)
-            # Top Right
-            elif x >= frame_w - w and y <= 0:
-                pos = (frame_w - w, 0)
-            # Bottom Right
-            elif x >= frame_w - w and y >= frame_h - h:
-                pos = (frame_w - w, frame_h - h)
-            # Bottom Left
-            elif x <= 0 and y >= frame_h - h:
-                pos = (0, frame_h - h)
-            # Top
-            elif y <= 0:
-                pos = (x, 0)
-            # Right
-            elif x >= frame_w - w:
-                pos = (frame_w - w, y)
-            # Bottom
-            elif y >= frame_h - h:
-                pos = (x, frame_h - h)
-            # Left
-            elif x <= 0:
-                pos = (0, y)
-            else:
-                pos = (x, y)
-
             frame[:] = overlay_transparent(
                 frame,
                 float_image.get_img()
                 if not flip
                 else cv.flip(float_image.get_img(), 1),
-                pos,
+                (x, y),
             )
 
         else:
-            # Top Left
-            if x <= 0 and y <= 0:
-                pos = slice(0, h), slice(0, w)
-            # Top Right
-            elif x >= frame_w - w and y <= 0:
-                pos = slice(0, h), slice(frame_w - w, frame_w)
-            # Bottom Right
-            elif x >= frame_w - w and y >= frame_h - h:
-                pos = slice(frame_h - h, frame_h), slice(frame_w - w, frame_w)
-            # Bottom Left
-            elif x <= 0 and y >= frame_h - h:
-                pos = slice(frame_h - h, frame_h), slice(0, w)
-            # Top
-            elif y <= 0:
-                pos = slice(0, h), slice(x, x + w)
-            # Right
-            elif x >= frame_w - w:
-                pos = slice(y, y + h), slice(frame_w - w, frame_w)
-            # Bottom
-            elif y >= frame_h - h:
-                pos = slice(frame_h - h, frame_h), slice(x, x + w)
-            # Left
-            elif x <= 0:
-                pos = slice(y, y + h), slice(0, w)
-            else:
-                pos = slice(y, y + h), slice(x, x + w)
+            w, h = float_image.get_width(), float_image.get_height()
 
-            frame[pos] = (
+            frame[y : y + h, x : x + w] = (
                 float_image.get_img() if not flip else cv.flip(float_image.get_img(), 1)
             )
 
@@ -488,7 +487,12 @@ class App(tk.Tk):
                     success = self._cap.get_success()
 
                     if success:
-                        self._float_images.append(FloatImage(path, (0, 0)))
+                        self._float_images.append(
+                            FloatImage(
+                                path,
+                                cap_w=self._cap.get_width(),
+                            )
+                        )
 
                 for i in range(imgs_count):
                     thumbnail, path = category_imgs[i]
@@ -546,7 +550,12 @@ class App(tk.Tk):
                     ]:
                         return
 
-                    self._float_images.append(FloatImage(path.name, (0, 0)))
+                    self._float_images.append(
+                        FloatImage(
+                            path.name,
+                            cap_w=self._cap.get_width(),
+                        )
+                    )
 
                     return
 

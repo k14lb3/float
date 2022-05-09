@@ -1,7 +1,8 @@
 import mediapipe as mp
 from math import hypot
 import cv2 as cv
-import itertools
+from itertools import chain
+from copy import deepcopy
 
 
 class HandDetector:
@@ -72,16 +73,17 @@ class HandDetector:
                 hand.append([])
                 for landmark in list(hand_landmarks.landmark):
                     hand[1].append(
-                        (
-                            int(landmark.x * w),
-                            int(landmark.y * h),
-                        )
+                        [
+                            min(int(landmark.x * w), w - 1),
+                            min(int(landmark.y * h), h - 1),
+                        ]
                     )
 
                 self._hands_list.append(hand)
 
                 self._pre_processed_hands_list.append(
-                    self._pre_process_landmarks((h, w), hand_landmarks)
+                    # self._pre_process_landmarks((h, w), hand_landmarks)
+                    self._pre_process_landmarks(hand[1])
                 )
 
                 if draw:
@@ -91,34 +93,26 @@ class HandDetector:
                         self._mp_hands.HAND_CONNECTIONS,
                     )
 
+
         return img
 
-    def _pre_process_landmarks(self, dim, hand_landmarks):
-        h, w = dim[:2]
-        
-        landmark_list = []
-
-        # Keypoint
-        for _, landmark in enumerate(hand_landmarks.landmark):
-            landmark_x = min(int(landmark.x * w), w - 1)
-            landmark_y = min(int(landmark.y * h), h - 1)
-            # landmark_z = landmark.z
-
-            landmark_list.append([landmark_x, landmark_y])
+    def _pre_process_landmarks(self, hand_landmarks):
+        landmark_list = deepcopy(hand_landmarks)
 
         # Convert to relative coordinates
         b_x, b_y = 0, 0
-        
+
         for i, landmark_point in enumerate(landmark_list):
             if i == 0:
                 b_x, b_y = landmark_point[0], landmark_point[1]
 
             landmark_list[i][0] = landmark_list[i][0] - b_x
             landmark_list[i][1] = landmark_list[i][1] - b_y
+        
 
         # Convert to a one-dimensional list/
-        landmark_list = list(itertools.chain.from_iterable(landmark_list))
-
+        landmark_list = list(chain.from_iterable(landmark_list))
+        
         # Normalization
         max_value = max(list(map(abs, landmark_list)))
 
