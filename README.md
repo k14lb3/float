@@ -9,7 +9,9 @@ Virtual camera application.
    which is the import image button, and the cog icon on the right side, which is the
    settings button.
 
-   ![main-window](https://user-images.githubusercontent.com/76220140/185181604-8d904c33-c911-4fac-b566-912b6630cf74.png)
+<div style="margin-bottom:1rem;" align="center">
+  <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181604-8d904c33-c911-4fac-b566-912b6630cf74.png" alt="main-window"/>
+</div>
 
 2. If the user clicks the settings button, a new window will pop-up; we’ll call this the
    settings window. The settings window currently contains three options: camera
@@ -17,7 +19,9 @@ Virtual camera application.
    toggles control of gestures over the virtual images, and hand landmarks that
    toggles the display of landmarks.
 
-   ![settings-window](https://user-images.githubusercontent.com/76220140/185181638-9caf743f-c036-4e1f-8986-0d6879774ceb.png)
+<div style="margin-bottom:1rem;" align="center">
+  <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181638-9caf743f-c036-4e1f-8986-0d6879774ceb.png" alt= alt="settings-window"/>
+</div>
 
 3. On the other hand, if the user clicks the settings button, a new window will popup; we’ll call this the import image window. The import image window contains
    different icons, as shown in the image below. These icons are premade images
@@ -28,9 +32,10 @@ Virtual camera application.
    image with the plus icon on the bottom leftmost part of the import image
    window.
 
-   ![import-image](https://user-images.githubusercontent.com/76220140/185181665-c9fd630b-a9a5-48ee-b94d-e612e110e30e.png)
-
-   ![import-external-image](https://user-images.githubusercontent.com/76220140/185182475-e91693ef-8b81-4400-b566-8b751b321a97.png)
+<div style="margin-bottom:1rem;" align="center">
+  <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181665-c9fd630b-a9a5-48ee-b94d-e612e110e30e.png" alt="import-image"/>
+  <img width="45%" src="https://user-images.githubusercontent.com/76220140/185182475-e91693ef-8b81-4400-b566-8b751b321a97.png" alt="import-external-image"/>
+</div>
 
 4. If a virtual image is displayed within the camera, you can now use gestures to
    interact with it. To be able to drag virtual images, you need to mimic the peace
@@ -40,7 +45,9 @@ Virtual camera application.
    cursor or pointer. After that, if you position the said midpoint under a virtual
    image, you will now be able to drag it.
 
-   ![drag-image](https://user-images.githubusercontent.com/76220140/185181709-3fa412c3-ec35-4d32-8278-8e77017212d9.png)
+<div style="margin-bottom:1rem;" align="center">
+  <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181709-3fa412c3-ec35-4d32-8278-8e77017212d9.png" alt="drag-image"/>
+</div>
 
 5. To be able to delete virtual images, you need to do the “D” hand sign with either
    your left or right hand. After doing the said hand sign, you need to do the pointing
@@ -48,7 +55,9 @@ Virtual camera application.
    finger its cursor or pointer for deleting a virtual image. So, from there, if you
    position your other hand’s index finger under the virtual image, it will be deleted.
 
-   ![delete-image](https://user-images.githubusercontent.com/76220140/185181733-59b8a8e5-988f-487e-bd8b-91dcb7199a42.PNG)
+<div style="margin-bottom:1rem;" align="center">
+  <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181733-59b8a8e5-988f-487e-bd8b-91dcb7199a42.PNG" alt="delete-image"/>
+</div>
 
 6. To be able to resize virtual images, you need to do the dragging gesture, which
    was mentioned earlier, with either your left or right hand. After doing the said
@@ -66,15 +75,17 @@ Virtual camera application.
    smaller, or moving your hands away from each other if you want to make the
    virtual image larger.
 
-   ![resize-image](https://user-images.githubusercontent.com/76220140/185181745-725b8ce1-9937-415e-bd29-a9dd84b9b322.PNG)
+<div style="margin-bottom:1rem;" align="center">
+  <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181745-725b8ce1-9937-415e-bd29-a9dd84b9b322.PNG" alt="resize-image"/>
+</div>
 
 7. To use the application as your camera for video conferencing software, you can
    simply follow the steps from the images shown below.
 
-   ![change-camera-1](https://user-images.githubusercontent.com/76220140/185181837-70c5b9d3-7b7f-42be-90fe-35f97ad80f2a.png)
-
-   ![change-camera-2](https://user-images.githubusercontent.com/76220140/185181922-61d00fd4-de8f-4f6d-967f-cd627e863d3d.png)
-
-   ![float](https://user-images.githubusercontent.com/76220140/185181956-ae389475-bcfb-4fe2-a6ab-d06dd9f89ca5.png)
+<div style="margin-bottom:1rem;" align="center">
+   <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181837-70c5b9d3-7b7f-42be-90fe-35f97ad80f2a.png" alt="change-camera-1"/>
+   <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181922-61d00fd4-de8f-4f6d-967f-cd627e863d3d.png" alt="change-camera-2"/>
+   <img width="45%" src="https://user-images.githubusercontent.com/76220140/185181956-ae389475-bcfb-4fe2-a6ab-d06dd9f89ca5.png" alt="float"/>
+</div>
 
 (⌐■_■)
